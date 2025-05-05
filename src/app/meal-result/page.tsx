@@ -13,6 +13,7 @@ import Header from '@/components/header';
 import { useAppContext } from '@/context/app-context';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"; // Import Alert components
+import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"; // Import Tooltip components
 
 const MealResultPage: NextPage = () => {
   const router = useRouter();
@@ -105,18 +106,20 @@ const MealResultPage: NextPage = () => {
                         <TableRow>
                           <TableHead>Food Item</TableHead>
                           <TableHead>Quantity</TableHead>
-                          <TableHead className="text-right flex items-center justify-end">
-                            CO₂e (kg)
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Info className="h-3 w-3 ml-1 text-muted-foreground cursor-help" />
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                  <p className="text-xs max-w-xs">Per-item CO₂e is roughly estimated by dividing the total. The AI provides the overall meal footprint.</p>
-                                </TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
+                          <TableHead className="text-right">
+                            <div className="flex items-center justify-end">
+                                CO₂e (kg)
+                                <TooltipProvider>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                    <Info className="h-3 w-3 ml-1 text-muted-foreground cursor-help" />
+                                    </TooltipTrigger>
+                                    <TooltipContent side="top">
+                                    <p className="text-xs max-w-xs">Per-item CO₂e is roughly estimated by dividing the total. The AI provides the overall meal footprint.</p>
+                                    </TooltipContent>
+                                </Tooltip>
+                                </TooltipProvider>
+                            </div>
                           </TableHead>
                         </TableRow>
                       </TableHeader>
@@ -167,3 +170,5 @@ const MealResultPage: NextPage = () => {
 };
 
 export default MealResultPage;
+
+    

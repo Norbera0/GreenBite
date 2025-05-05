@@ -1,3 +1,4 @@
+
 "use client";
 
 import type { NextPage } from 'next';
@@ -12,6 +13,7 @@ import Header from '@/components/header';
 import { useAppContext } from '@/context/app-context';
 import type { MealLog } from '@/context/app-context';
 import { Leaf, CalendarDays } from 'lucide-react';
+import { Tooltip as ShadTooltip, TooltipContent as ShadTooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip" // Added for info icon
 
 // Utility to group logs by date
 const groupLogsByDate = (logs: MealLog[]): { [date: string]: MealLog[] } => {
@@ -69,7 +71,7 @@ const ReportsPage: NextPage = () => {
      const dateInterval = eachDayOfInterval({ start: sevenDaysAgo, end: today });
      const dailyTotalsMap = new Map<string, number>();
 
-     // Initialize map with 0 for each day in the interval
+     // Initialize map with 0 for each day in the interval (ensures chronological order)
      dateInterval.forEach(day => {
        dailyTotalsMap.set(format(day, 'yyyy-MM-dd'), 0);
      });
@@ -82,11 +84,13 @@ const ReportsPage: NextPage = () => {
        }
      });
 
-     // Convert map to array format for the chart
+     // Convert map to array format for the chart. Map iteration preserves insertion order, which is chronological here.
      return Array.from(dailyTotalsMap.entries()).map(([date, total]) => ({
        name: format(parseISO(date), 'EEE'), // Format date as 'Mon', 'Tue', etc.
        totalCO2e: parseFloat(total.toFixed(2)), // Ensure it's a number
-     })).sort((a, b) => parseISO(Array.from(dailyTotalsMap.keys())[Array.from(dailyTotalsMap.values()).indexOf(a.totalCO2e)])?.getTime() - parseISO(Array.from(dailyTotalsMap.keys())[Array.from(dailyTotalsMap.values()).indexOf(b.totalCO2e)])?.getTime() ); // Ensure chronological order if needed, though map iteration order might suffice
+       fullDate: date, // Keep full date for potential future use or debugging
+     }));
+     // Removed the complex and error-prone .sort() call. The data is inherently sorted chronologically.
 
    }, [mealLogs, sevenDaysAgo, today]);
 
@@ -130,7 +134,7 @@ const ReportsPage: NextPage = () => {
                   </CardHeader>
                   <CardContent className="h-[200px] p-0 pr-2 pb-2">
                      <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={graphData}>
+                      <BarChart data={graphData} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}> {/* Adjusted margins */}
                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
                          <XAxis
                           dataKey="name"
@@ -148,12 +152,12 @@ const ReportsPage: NextPage = () => {
                          />
                          <Tooltip
                             cursor={{ fill: 'hsl(var(--muted))', radius: 4 }}
-                             contentStyle={{ background: 'hsl(var(--background))', border: '1px solid hsl(var(--border))', borderRadius: 'var(--radius)' }}
-                             labelStyle={{ color: 'hsl(var(--foreground))' }}
+                             contentStyle={{ background: 'hsl(var(--background))', border: '1px solid hsl(var(--border))', borderRadius: 'var(--radius)', fontSize: '12px', padding: '8px' }} // Style tooltip
+                             labelStyle={{ color: 'hsl(var(--foreground))', marginBottom: '4px' }}
                              itemStyle={{ color: 'hsl(var(--primary))' }}
-                          formatter={(value: number) => [`${value.toFixed(2)} kg CO₂e`, 'Total']}
+                            formatter={(value: number) => [`${value.toFixed(2)} kg CO₂e`, 'Total']}
                          />
-                         <Bar dataKey="totalCO2e" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                         <Bar dataKey="totalCO2e" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} barSize={20} /> {/* Adjust barSize */}
                       </BarChart>
                     </ResponsiveContainer>
                   </CardContent>
@@ -168,7 +172,7 @@ const ReportsPage: NextPage = () => {
                      <CalendarDays className="h-5 w-5 mr-2 text-primary"/>
                      Daily Meal Logs
                   </CardTitle>
-                   <CardDescription>View your logged meals day by day.</CardDescription>
+                   <CardDescription>View your logged meals day by day, newest first.</CardDescription>
                 </CardHeader>
                 <CardContent>
                  <ScrollArea className="h-[400px] w-full pr-4">
@@ -178,21 +182,23 @@ const ReportsPage: NextPage = () => {
                           <h3 className="text-md font-semibold mb-2 border-b pb-1">{format(parseISO(date), 'EEEE, MMMM do, yyyy')}</h3>
                           <ul className="space-y-3">
                             {dailyLogsGrouped[date].map((log, index) => (
-                               <li key={index} className="flex items-center justify-between p-2 bg-card rounded-md border">
-                                 <div className="flex items-center space-x-3">
+                               <li key={`${log.timestamp}-${index}`} className="flex items-center justify-between p-3 bg-card rounded-md border border-border/50 hover:bg-muted/50 transition-colors"> {/* Added key, padding, border, hover */}
+                                 <div className="flex items-center space-x-3 flex-1 min-w-0"> {/* Flex-1 and min-w-0 for truncation */}
                                    {log.photoDataUri ? (
-                                     <img src={log.photoDataUri} alt={`Meal from ${format(parseISO(log.timestamp), 'p')}`} className="w-12 h-12 object-cover rounded-md"/>
+                                     <img src={log.photoDataUri} alt={`Meal from ${format(parseISO(log.timestamp), 'p')}`} className="w-12 h-12 object-cover rounded-md border"/>
                                    ) : (
-                                     <div className="w-12 h-12 bg-secondary rounded-md flex items-center justify-center">
+                                     <div className="w-12 h-12 bg-secondary rounded-md flex items-center justify-center flex-shrink-0"> {/* flex-shrink-0 */}
                                         <Leaf className="w-6 h-6 text-muted-foreground"/>
                                      </div>
                                    )}
-                                    <div>
-                                      <p className="text-sm font-medium">{log.foodItems.map(i => i.name).join(', ') || 'Logged Meal'}</p>
+                                    <div className="flex-1 min-w-0"> {/* Flex-1 and min-w-0 for truncation */}
+                                      <p className="text-sm font-medium truncate" title={log.foodItems.map(i => i.name).join(', ') || 'Logged Meal'}> {/* Truncate and add title */}
+                                          {log.foodItems.map(i => i.name).join(', ') || 'Logged Meal'}
+                                      </p>
                                       <p className="text-xs text-muted-foreground">{format(parseISO(log.timestamp), 'p')}</p> {/* Time */}
                                     </div>
                                  </div>
-                                  <span className="text-sm font-semibold text-primary">{log.totalCarbonFootprint.toFixed(2)} kg CO₂e</span>
+                                  <span className="text-sm font-semibold text-primary ml-3">{log.totalCarbonFootprint.toFixed(2)} kg CO₂e</span>
                                </li>
                             ))}
                           </ul>
@@ -212,3 +218,5 @@ const ReportsPage: NextPage = () => {
  };
 
  export default ReportsPage;
+
+    
