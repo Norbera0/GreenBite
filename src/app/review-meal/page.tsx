@@ -1,3 +1,4 @@
+
 "use client";
 
 import type { NextPage } from 'next';
@@ -8,19 +9,23 @@ import { Input } from '@/components/ui/input'; // Although not used directly, ke
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
-import { Loader2, CheckCircle, AlertTriangle } from 'lucide-react';
+import { Loader2, CheckCircle, AlertTriangle, Sparkles } from 'lucide-react'; // Added Sparkles
 import Header from '@/components/header';
 import { useAppContext } from '@/context/app-context';
 import { estimateCarbonFootprintFromMealPhoto } from '@/ai/flows/estimate-carbon-footprint'; // Import the AI flow function
+import { generateMealSuggestion } from '@/ai/flows/generate-meal-suggestion'; // Import the suggestion flow
 import type { EstimateCarbonFootprintFromMealPhotoOutput } from '@/ai/schemas'; // Import the AI flow output type from schemas
 import { useToast } from "@/hooks/use-toast";
 
+// Define a threshold for triggering suggestions (e.g., 2.0 kg CO2e)
+const SUGGESTION_THRESHOLD_KG_CO2E = 2.0;
 
 const ReviewMealPage: NextPage = () => {
   const router = useRouter();
   const { mealPhoto, setMealResult, addMealLog, user, isLoading: isAppContextLoading } = useAppContext();
   const [quantityAndUnits, setQuantityAndUnits] = useState('');
   const [isEstimating, setIsEstimating] = useState(false);
+  const [estimatingStep, setEstimatingStep] = useState(''); // To show progress
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
@@ -56,18 +61,19 @@ const ReviewMealPage: NextPage = () => {
 
     setIsEstimating(true);
     setError(null);
+    setEstimatingStep('Estimating footprint...'); // Initial step
+
+    let suggestion: string | null = null;
 
     try {
-      console.log("Sending to AI:", { photoDataUri: mealPhoto, quantityAndUnits });
+      console.log("Sending to AI for footprint estimation:", { photoDataUri: mealPhoto, quantityAndUnits });
       const result: EstimateCarbonFootprintFromMealPhotoOutput = await estimateCarbonFootprintFromMealPhoto({
         photoDataUri: mealPhoto,
         quantityAndUnits: quantityAndUnits,
       });
-      console.log("AI Result:", result);
+      console.log("AI Footprint Result:", result);
 
-      setMealResult(result); // Store the full result in context
-
-      // Add to meal log
+      // Add to meal log immediately after getting the result
       if(user?.email) {
          await addMealLog({
            userEmail: user.email,
@@ -79,10 +85,34 @@ const ReviewMealPage: NextPage = () => {
          });
       }
 
+       // Check if footprint is high enough for a suggestion
+       if (result.carbonFootprintKgCO2e > SUGGESTION_THRESHOLD_KG_CO2E) {
+         setEstimatingStep('Generating suggestion...'); // Update step
+         console.log("Footprint is high, generating suggestion...");
+          try {
+            const suggestionResult = await generateMealSuggestion({
+              foodItems: result.foodItems,
+              carbonFootprintKgCO2e: result.carbonFootprintKgCO2e,
+            });
+            suggestion = suggestionResult.suggestion;
+            console.log("AI Suggestion Result:", suggestion);
+          } catch (suggestionError) {
+             console.error('Error generating suggestion:', suggestionError);
+             // Continue without suggestion, maybe log this error
+             toast({
+               title: "Suggestion Generation Failed",
+               description: "Could not generate a meal suggestion, but the footprint was calculated.",
+               variant: "default", // Not destructive, as main task succeeded
+             });
+          }
+       }
+
+      // Set result and suggestion (if any) in context
+      setMealResult(result, suggestion);
 
       toast({
         title: "Estimation Complete",
-        description: `Carbon footprint calculated: ${result.carbonFootprintKgCO2e.toFixed(2)} kg CO₂e`,
+        description: `Carbon footprint calculated: ${result.carbonFootprintKgCO2e.toFixed(2)} kg CO₂e${suggestion ? '. Suggestion available!' : ''}`,
         action: (
            <Button variant="outline" size="sm" onClick={() => router.push('/meal-result')}>
             View Details
@@ -102,6 +132,7 @@ const ReviewMealPage: NextPage = () => {
       });
     } finally {
       setIsEstimating(false);
+      setEstimatingStep(''); // Clear step text
     }
   };
 
@@ -130,7 +161,7 @@ const ReviewMealPage: NextPage = () => {
           <CardHeader>
             <CardTitle className="text-2xl text-center text-primary">Review Your Meal</CardTitle>
             <CardDescription className="text-center">
-              Confirm the details of your meal. AI will estimate the carbon footprint based on the image and your description.
+              Confirm the details. AI will estimate the footprint and may offer suggestions for high-impact meals.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -165,6 +196,14 @@ const ReviewMealPage: NextPage = () => {
               </div>
             )}
 
+             {isEstimating && (
+               <div className="flex items-center justify-center text-sm text-primary">
+                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                 {estimatingStep || 'Processing...'}
+               </div>
+            )}
+
+
           </CardContent>
           <CardFooter>
             <Button
@@ -178,7 +217,7 @@ const ReviewMealPage: NextPage = () => {
               ) : (
                 <CheckCircle className="mr-2 h-5 w-5" />
               )}
-              {isEstimating ? 'Estimating...' : 'Confirm & Estimate'}
+              {isEstimating ? estimatingStep || 'Estimating...' : 'Confirm & Estimate'}
             </Button>
           </CardFooter>
         </Card>
@@ -188,3 +227,4 @@ const ReviewMealPage: NextPage = () => {
 };
 
 export default ReviewMealPage;
+

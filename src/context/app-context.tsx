@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useMemo } from 'react';
@@ -26,7 +27,8 @@ interface AppContextProps {
   mealPhoto: string | null;
   setMealPhoto: (photoDataUri: string | null) => void;
   mealResult: EstimateCarbonFootprintFromMealPhotoOutput | null;
-  setMealResult: (result: EstimateCarbonFootprintFromMealPhotoOutput | null) => void;
+  mealSuggestion: string | null; // Added for AI suggestion
+  setMealResult: (result: EstimateCarbonFootprintFromMealPhotoOutput | null, suggestion?: string | null) => void; // Modified signature
   mealLogs: MealLog[];
   addMealLog: (log: MealLog) => Promise<void>;
   isLoading: boolean;
@@ -42,6 +44,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [user, setUser] = useState<User | null>(null);
   const [mealPhoto, setMealPhotoState] = useState<string | null>(null);
   const [mealResult, setMealResultState] = useState<EstimateCarbonFootprintFromMealPhotoOutput | null>(null);
+  const [mealSuggestion, setMealSuggestionState] = useState<string | null>(null); // State for suggestion
   const [mealLogs, setMealLogs] = useState<MealLog[]>([]);
   const [isLoading, setIsLoading] = useState(true); // Start loading
 
@@ -85,6 +88,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setUser(null);
     setMealPhotoState(null);
     setMealResultState(null);
+    setMealSuggestionState(null); // Clear suggestion on logout
     // Decide whether to clear logs on logout or keep them global
     // setMealLogs([]);
     // localStorage.removeItem(MEAL_LOGS_STORAGE_KEY);
@@ -97,9 +101,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     // Optionally store in session storage if needed across refreshes before result
   }, []);
 
-  const setMealResult = useCallback((result: EstimateCarbonFootprintFromMealPhotoOutput | null) => {
+  // Modified setMealResult to accept optional suggestion
+  const setMealResult = useCallback((result: EstimateCarbonFootprintFromMealPhotoOutput | null, suggestion: string | null = null) => {
     setMealResultState(result);
+    setMealSuggestionState(suggestion); // Set the suggestion
   }, []);
+
 
   const addMealLog = useCallback(async (log: MealLog) => {
     setMealLogs(prevLogs => {
@@ -132,8 +139,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       mealPhoto,
       setMealPhoto,
       mealResult,
+      mealSuggestion, // Provide suggestion
       setMealResult,
-       mealLogs: currentUserMealLogs, // Provide filtered logs
+      mealLogs: currentUserMealLogs, // Provide filtered logs
       addMealLog,
       isLoading
     }}>

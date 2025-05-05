@@ -49,3 +49,31 @@ export const EstimateCarbonFootprintFromMealPhotoOutputSchema = z.object({
 export type EstimateCarbonFootprintFromMealPhotoOutput = z.infer<
   typeof EstimateCarbonFootprintFromMealPhotoOutputSchema
 >;
+
+
+// --- Meal Suggestion Schemas ---
+
+/**
+ * Zod schema for the input required by the meal suggestion AI flow.
+ */
+export const GenerateMealSuggestionInputSchema = z.object({
+  foodItems: z.array(FoodItemSchema).describe('The identified food items in the meal.'),
+  carbonFootprintKgCO2e: z.number().describe('The estimated carbon footprint of the meal in kg CO2e.'),
+});
+
+/**
+ * TypeScript type inferred from the GenerateMealSuggestionInputSchema.
+ */
+export type GenerateMealSuggestionInput = z.infer<typeof GenerateMealSuggestionInputSchema>;
+
+/**
+ * Zod schema for the output produced by the meal suggestion AI flow.
+ */
+export const GenerateMealSuggestionOutputSchema = z.object({
+  suggestion: z.string().describe('A short, friendly suggestion for a lower-CO2e alternative meal.'),
+});
+
+/**
+ * TypeScript type inferred from the GenerateMealSuggestionOutputSchema.
+ */
+export type GenerateMealSuggestionOutput = z.infer<typeof GenerateMealSuggestionOutputSchema>;

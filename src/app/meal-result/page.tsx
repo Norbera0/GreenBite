@@ -1,27 +1,29 @@
+
 "use client";
 
 import type { NextPage } from 'next';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Leaf, Utensils, Home } from 'lucide-react';
+import { Leaf, Utensils, Home, Sparkles, Info } from 'lucide-react'; // Added Sparkles, Info
 import Header from '@/components/header';
 import { useAppContext } from '@/context/app-context';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"; // Import Alert components
 
 const MealResultPage: NextPage = () => {
   const router = useRouter();
-  const { mealResult, mealPhoto, user, isLoading } = useAppContext();
+  const { mealResult, mealPhoto, mealSuggestion, user, isLoading } = useAppContext(); // Get mealSuggestion
+  const [showSuggestionDetails, setShowSuggestionDetails] = useState(false); // State for suggestion details
 
    useEffect(() => {
      if (!isLoading && !user) {
       router.push('/login');
      } else if (!isLoading && !mealResult) {
        // Redirect if no result is available (e.g., direct navigation)
-       // Consider showing a toast message here as well.
        router.push('/'); // Go home if no result
      }
    }, [user, mealResult, isLoading, router]);
@@ -66,46 +68,84 @@ const MealResultPage: NextPage = () => {
               Estimated CO₂e for your logged meal.
             </CardDescription>
           </CardHeader>
-          <CardContent>
-             <div className="text-center mb-6 p-4 bg-primary/10 rounded-lg border border-primary/20">
+          <CardContent className="space-y-6">
+             <div className="text-center p-4 bg-primary/10 rounded-lg border border-primary/20">
                <p className="text-sm font-medium text-primary mb-1">Total Estimated Footprint</p>
                <p className="text-3xl font-bold text-primary">
                  {carbonFootprintKgCO2e.toFixed(2)} kg CO₂e
                </p>
              </div>
 
-            <h3 className="text-lg font-semibold mb-2 flex items-center"><Leaf className="w-4 h-4 mr-2 text-primary"/>Item Breakdown</h3>
-            <ScrollArea className="h-[200px] w-full border rounded-md">
-               <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Food Item</TableHead>
-                      <TableHead>Quantity</TableHead>
-                      <TableHead className="text-right">CO₂e (kg)</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {foodItems.length > 0 ? (
-                        foodItems.map((item, index) => (
-                          <TableRow key={index}>
-                            <TableCell className="font-medium capitalize">{item.name || 'Unknown Item'}</TableCell>
-                            <TableCell>{item.quantity || 'N/A'}</TableCell>
-                            {/* Assuming the API provides per-item CO2e; if not, this needs adjustment */}
-                            {/* Currently the AI flow only returns total; Showing placeholder */}
-                             <TableCell className="text-right text-muted-foreground">{(carbonFootprintKgCO2e / (foodItems.length || 1)).toFixed(2)}*</TableCell>
-                           </TableRow>
-                        ))
-                      ) : (
+             {/* Display AI Suggestion if available */}
+             {mealSuggestion && (
+                <Alert variant="default" className="bg-accent/10 border-accent/30">
+                    <Sparkles className="h-5 w-5 text-accent" />
+                    <AlertTitle className="text-accent font-semibold">Eco Suggestion</AlertTitle>
+                    <AlertDescription className="text-accent/90">
+                        {mealSuggestion}
+                    </AlertDescription>
+                     {/* Optional: Button to show more details in the future */}
+                    {/* <Button variant="link" size="sm" className="p-0 h-auto mt-1 text-accent/80 hover:text-accent" onClick={() => setShowSuggestionDetails(!showSuggestionDetails)}>
+                        {showSuggestionDetails ? 'Hide Details' : 'Learn More'}
+                    </Button>
+                    {showSuggestionDetails && (
+                        <div className="mt-2 text-xs text-accent/70">
+                           (Future feature: Show alternative meal details or recipes)
+                        </div>
+                    )} */}
+                </Alert>
+             )}
+
+
+            <div>
+                <h3 className="text-lg font-semibold mb-2 flex items-center"><Leaf className="w-4 h-4 mr-2 text-primary"/>Item Breakdown</h3>
+                <ScrollArea className="h-[150px] w-full border rounded-md"> {/* Reduced height slightly */}
+                   <Table>
+                      <TableHeader>
                         <TableRow>
-                          <TableCell colSpan={3} className="text-center text-muted-foreground">No specific items identified.</TableCell>
+                          <TableHead>Food Item</TableHead>
+                          <TableHead>Quantity</TableHead>
+                          <TableHead className="text-right flex items-center justify-end">
+                            CO₂e (kg)
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Info className="h-3 w-3 ml-1 text-muted-foreground cursor-help" />
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p className="text-xs max-w-xs">Per-item CO₂e is roughly estimated by dividing the total. The AI provides the overall meal footprint.</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          </TableHead>
                         </TableRow>
-                      )}
-                  </TableBody>
-                </Table>
-             </ScrollArea>
-              {foodItems.length > 0 && (
-                 <p className="text-xs text-muted-foreground mt-2 text-right">* Per-item CO₂e is estimated by dividing the total. Individual item data not available in this demo.</p>
-              )}
+                      </TableHeader>
+                      <TableBody>
+                        {foodItems.length > 0 ? (
+                            foodItems.map((item, index) => (
+                              <TableRow key={index}>
+                                <TableCell className="font-medium capitalize">{item.name || 'Unknown Item'}</TableCell>
+                                <TableCell>{item.quantity || 'N/A'}</TableCell>
+                                {/* Show placeholder estimated per-item CO2e */}
+                                 <TableCell className="text-right text-muted-foreground">
+                                    {(carbonFootprintKgCO2e / (foodItems.length || 1)).toFixed(2)}*
+                                 </TableCell>
+                               </TableRow>
+                            ))
+                          ) : (
+                            <TableRow>
+                              <TableCell colSpan={3} className="text-center text-muted-foreground">No specific items identified.</TableCell>
+                            </TableRow>
+                          )}
+                      </TableBody>
+                    </Table>
+                 </ScrollArea>
+                  {/* {foodItems.length > 0 && (
+                     <p className="text-xs text-muted-foreground mt-1 text-right">* Per-item CO₂e is estimated by dividing the total.</p>
+                  )} */}
+            </div>
+
+
           </CardContent>
            <CardFooter className="flex flex-col sm:flex-row gap-2 justify-between">
             <Link href="/log-meal" passHref>
