@@ -1,16 +1,4 @@
-/**
- * Represents a food item with its name and quantity.
- */
-export interface FoodItem {
-  /**
-   * The name of the food item.
-   */
-  name: string;
-  /**
-   * The quantity of the food item.
-   */
-  quantity: string;
-}
+import type { FoodItem } from '@/ai/schemas'; // Import FoodItem type from the new schemas file
 
 /**
  * Represents the *total* carbon footprint of a list of food items.

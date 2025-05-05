@@ -4,15 +4,15 @@ import type { NextPage } from 'next';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { Input } from '@/components/ui/input'; // Although not used directly, keep for consistency if needed later
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Textarea } from '@/components/ui/textarea'; // Assuming Textarea exists
+import { Textarea } from '@/components/ui/textarea';
 import { Loader2, CheckCircle, AlertTriangle } from 'lucide-react';
 import Header from '@/components/header';
 import { useAppContext } from '@/context/app-context';
-import { estimateCarbonFootprintFromMealPhoto } from '@/ai/flows/estimate-carbon-footprint'; // Import the AI flow
-import type { EstimateCarbonFootprintFromMealPhotoOutput } from '@/ai/flows/estimate-carbon-footprint';
+import { estimateCarbonFootprintFromMealPhoto } from '@/ai/flows/estimate-carbon-footprint'; // Import the AI flow function
+import type { EstimateCarbonFootprintFromMealPhotoOutput } from '@/ai/schemas'; // Import the AI flow output type from schemas
 import { useToast } from "@/hooks/use-toast";
 
 

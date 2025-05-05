@@ -1,7 +1,8 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useMemo } from 'react';
-import type { EstimateCarbonFootprintFromMealPhotoOutput, FoodItem } from '@/ai/flows/estimate-carbon-footprint'; // Assuming FoodItem is exported or defined there
+import type { EstimateCarbonFootprintFromMealPhotoOutput } from '@/ai/flows/estimate-carbon-footprint';
+import type { FoodItem } from '@/ai/schemas'; // Import FoodItem type from the new schemas file
 
 // Define interfaces directly or import if they exist elsewhere
 interface User {

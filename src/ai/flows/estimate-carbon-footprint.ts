@@ -10,42 +10,18 @@
  */
 
 import {ai} from '@/ai/genkit';
-import {z} from 'genkit';
+import {
+  EstimateCarbonFootprintFromMealPhotoInputSchema,
+  type EstimateCarbonFootprintFromMealPhotoInput,
+  EstimateCarbonFootprintFromMealPhotoOutputSchema,
+  type EstimateCarbonFootprintFromMealPhotoOutput,
+} from '@/ai/schemas'; // Import from the new schemas file
+
 // Use the placeholder service function to simulate the backend call structure if needed,
 // but the core logic is within the flow itself.
 // import { estimateCarbonFootprint } from '@/services/food-carbon-footprint';
 
-// Ensure FoodItem schema matches the one used in AppContext/services
-export const FoodItemSchema = z.object({
-  name: z.string().describe('The name of the food item.'),
-  quantity: z.string().describe('The quantity and units of the food item (e.g., "200g", "1 cup").'),
-});
-export type FoodItem = z.infer<typeof FoodItemSchema>;
-
-
-const EstimateCarbonFootprintFromMealPhotoInputSchema = z.object({
-  photoDataUri: z
-    .string()
-    .describe(
-      "A photo of a meal, as a data URI that must include a MIME type and use Base64 encoding. Expected format: 'data:<mimetype>;base64,<encoded_data>'."
-    ),
-  quantityAndUnits: z.string().describe('User provided description of the quantity and units of the entire meal (e.g., "Large bowl", "200g chicken, 1 cup rice").'),
-});
-export type EstimateCarbonFootprintFromMealPhotoInput = z.infer<
-  typeof EstimateCarbonFootprintFromMealPhotoInputSchema
->;
-
-
-const EstimateCarbonFootprintFromMealPhotoOutputSchema = z.object({
-  foodItems: z.array(FoodItemSchema).describe('The identified food items in the meal.'),
-  carbonFootprintKgCO2e: z
-    .number()
-    .describe('The *total* estimated carbon footprint of the meal in kg CO2e.'),
-});
-export type EstimateCarbonFootprintFromMealPhotoOutput = z.infer<
-  typeof EstimateCarbonFootprintFromMealPhotoOutputSchema
->;
-
+// Schemas and Types are now imported from src/ai/schemas.ts
 
 // This prompt now asks for *both* identification and *total* footprint estimation.
 // This simplifies the flow by doing it in one LLM call.
@@ -67,7 +43,7 @@ const identifyAndEstimatePrompt = ai.definePrompt({
   `,
 });
 
-
+// This function is the main export intended for use by client components.
 export async function estimateCarbonFootprintFromMealPhoto(
   input: EstimateCarbonFootprintFromMealPhotoInput
 ): Promise<EstimateCarbonFootprintFromMealPhotoOutput> {
@@ -75,7 +51,7 @@ export async function estimateCarbonFootprintFromMealPhoto(
   return estimateCarbonFootprintFromMealPhotoFlow(input);
 }
 
-
+// The Genkit flow definition itself is not exported directly.
 const estimateCarbonFootprintFromMealPhotoFlow = ai.defineFlow(
   {
     name: 'estimateCarbonFootprintFromMealPhotoFlow',
@@ -115,3 +91,7 @@ const estimateCarbonFootprintFromMealPhotoFlow = ai.defineFlow(
     // ---- End of old logic ---
   }
 );
+
+// Make EstimateCarbonFootprintFromMealPhotoInput and EstimateCarbonFootprintFromMealPhotoOutput types available for import
+// They are already exported from src/ai/schemas.ts, so no need to re-export here.
+export type { EstimateCarbonFootprintFromMealPhotoInput, EstimateCarbonFootprintFromMealPhotoOutput };
