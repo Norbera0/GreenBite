@@ -89,11 +89,14 @@ const ReportsPage: NextPage = () => {
        }
      });
      
-     return Array.from(dailyTotalsMap.entries()).map(([date, total]) => ({
+     const data = Array.from(dailyTotalsMap.entries()).map(([date, total]) => ({
        name: format(parseISO(date), 'EEE'), 
        totalCO2e: parseFloat(total.toFixed(2)), 
        fullDate: date, 
      }));
+     // Sort by fullDate to ensure chronological order for the graph
+     data.sort((a, b) => parseISO(a.fullDate).getTime() - parseISO(b.fullDate).getTime());
+     return data;
    }, [mealLogs, sevenDaysAgo, today]);
 
   if (isLoading || !user) {
@@ -140,7 +143,7 @@ const ReportsPage: NextPage = () => {
                   </CardHeader>
                   <CardContent className="h-[220px] p-0 pr-2 pb-2"> {/* Increased height */}
                      <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={graphData} margin={{ top: 5, right:10, left: -25, bottom: 5 }}> {/* Adjusted margins */}
+                      <BarChart data={graphData} margin={{ top: 5, right:10, left: 5, bottom: 5 }}> {/* Adjusted left margin */}
                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
                          <XAxis
                           dataKey="name"
