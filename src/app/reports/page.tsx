@@ -12,8 +12,8 @@ import { format, subDays, eachDayOfInterval, parseISO } from 'date-fns';
 import Header from '@/components/header';
 import { useAppContext } from '@/context/app-context';
 import type { MealLog } from '@/context/app-context';
-import { Leaf, CalendarDays } from 'lucide-react';
-import { Tooltip as ShadTooltip, TooltipContent as ShadTooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip" // Added for info icon
+import { Leaf, CalendarDays, Lightbulb, Loader2 } from 'lucide-react'; // Added Lightbulb, Loader2
+// import { Tooltip as ShadTooltip, TooltipContent as ShadTooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip" // Added for info icon
 
 // Utility to group logs by date
 const groupLogsByDate = (logs: MealLog[]): { [date: string]: MealLog[] } => {
@@ -29,7 +29,7 @@ const groupLogsByDate = (logs: MealLog[]): { [date: string]: MealLog[] } => {
 
 const ReportsPage: NextPage = () => {
   const router = useRouter();
-  const { user, mealLogs, isLoading } = useAppContext();
+  const { user, mealLogs, isLoading, weeklyTip, isLoadingWeeklyTip, fetchWeeklyTip } = useAppContext();
   const [activeTab, setActiveTab] = useState("overview");
 
   useEffect(() => {
@@ -37,6 +37,13 @@ const ReportsPage: NextPage = () => {
       router.push('/login');
     }
   }, [user, isLoading, router]);
+
+  useEffect(() => {
+    if (user && mealLogs.length > 0 && activeTab === "overview") { // Fetch tip when overview is active and logs are available
+      fetchWeeklyTip();
+    }
+  }, [user, mealLogs, fetchWeeklyTip, activeTab]);
+
 
   const today = useMemo(() => new Date(), []);
   const sevenDaysAgo = useMemo(() => subDays(today, 6), [today]);
@@ -50,7 +57,7 @@ const ReportsPage: NextPage = () => {
     let weekly = 0;
 
     mealLogs.forEach(log => {
-      const logDate = parseISO(log.timestamp); // Use timestamp for accurate comparison
+      const logDate = parseISO(log.timestamp); 
       if (format(logDate, 'yyyy-MM-dd') === todayStr) {
         daily += log.totalCarbonFootprint;
       }
@@ -71,31 +78,26 @@ const ReportsPage: NextPage = () => {
      const dateInterval = eachDayOfInterval({ start: sevenDaysAgo, end: today });
      const dailyTotalsMap = new Map<string, number>();
 
-     // Initialize map with 0 for each day in the interval (ensures chronological order)
      dateInterval.forEach(day => {
        dailyTotalsMap.set(format(day, 'yyyy-MM-dd'), 0);
      });
 
-     // Aggregate totals from logs
      mealLogs.forEach(log => {
        const dateStr = format(parseISO(log.timestamp), 'yyyy-MM-dd');
        if (dailyTotalsMap.has(dateStr)) {
          dailyTotalsMap.set(dateStr, (dailyTotalsMap.get(dateStr) ?? 0) + log.totalCarbonFootprint);
        }
      });
-
-     // Convert map to array format for the chart. Map iteration preserves insertion order, which is chronological here.
+     
      return Array.from(dailyTotalsMap.entries()).map(([date, total]) => ({
-       name: format(parseISO(date), 'EEE'), // Format date as 'Mon', 'Tue', etc.
-       totalCO2e: parseFloat(total.toFixed(2)), // Ensure it's a number
-       fullDate: date, // Keep full date for potential future use or debugging
+       name: format(parseISO(date), 'EEE'), 
+       totalCO2e: parseFloat(total.toFixed(2)), 
+       fullDate: date, 
      }));
-     // Removed the complex and error-prone .sort() call. The data is inherently sorted chronologically.
-
    }, [mealLogs, sevenDaysAgo, today]);
 
   if (isLoading || !user) {
-    return <div className="flex justify-center items-center min-h-screen">Loading...</div>;
+    return <div className="flex justify-center items-center min-h-screen"><Loader2 className="h-8 w-8 animate-spin text-primary" /> <span className="ml-2">Loading...</span></div>;
   }
 
   const sortedDates = Object.keys(dailyLogsGrouped).sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
@@ -105,36 +107,40 @@ const ReportsPage: NextPage = () => {
       <Header title="Reports" />
       <main className="flex-grow container mx-auto p-4">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-           <TabsList className="grid w-full grid-cols-2 mb-4">
+           <TabsList className="grid w-full grid-cols-2 mb-6">
             <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="logs">Daily Logs</TabsTrigger>
+            <TabsTrigger value="logs">Meal Log History</TabsTrigger>
           </TabsList>
 
            <TabsContent value="overview">
-             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-2">
+             <div className="grid gap-6 md:grid-cols-2"> {/* Increased gap */}
                 {/* Totals Card */}
                 <Card className="shadow-md">
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">CO₂e Totals</CardTitle>
-                     <Leaf className="h-4 w-4 text-muted-foreground" />
+                    <CardTitle className="text-base font-medium">CO₂e Totals</CardTitle> {/* text-base */}
+                     <Leaf className="h-5 w-5 text-muted-foreground" /> {/* h-5 w-5 */}
                   </CardHeader>
-                  <CardContent className="space-y-2">
-                     <div className="text-2xl font-bold">{dailyTotal.toFixed(2)} kg</div>
-                    <p className="text-xs text-muted-foreground">Today's Total</p>
-                     <div className="text-2xl font-bold">{weeklyTotal.toFixed(2)} kg</div>
-                    <p className="text-xs text-muted-foreground">Last 7 Days Total</p>
+                  <CardContent className="space-y-3 pt-2"> {/* Added pt-2, increased space-y */}
+                     <div>
+                        <div className="text-3xl font-bold">{dailyTotal.toFixed(2)} kg</div> {/* text-3xl */}
+                        <p className="text-xs text-muted-foreground">Today's Total</p>
+                     </div>
+                     <div>
+                        <div className="text-3xl font-bold">{weeklyTotal.toFixed(2)} kg</div> {/* text-3xl */}
+                        <p className="text-xs text-muted-foreground">Last 7 Days Total</p>
+                     </div>
                   </CardContent>
                 </Card>
 
                {/* 7-Day Graph Card */}
                 <Card className="shadow-md">
                   <CardHeader>
-                    <CardTitle className="text-sm font-medium">7-Day Carbon Footprint Trend</CardTitle>
-                     <CardDescription>kg CO₂e per day</CardDescription>
+                    <CardTitle className="text-base font-medium">7-Day Carbon Footprint Trend</CardTitle> {/* text-base */}
+                     <CardDescription className="text-xs">kg CO₂e per day</CardDescription> {/* text-xs */}
                   </CardHeader>
-                  <CardContent className="h-[200px] p-0 pr-2 pb-2">
+                  <CardContent className="h-[220px] p-0 pr-2 pb-2"> {/* Increased height */}
                      <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={graphData} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}> {/* Adjusted margins */}
+                      <BarChart data={graphData} margin={{ top: 5, right:10, left: -25, bottom: 5 }}> {/* Adjusted margins */}
                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
                          <XAxis
                           dataKey="name"
@@ -148,20 +154,49 @@ const ReportsPage: NextPage = () => {
                           fontSize={12}
                           tickLine={false}
                           axisLine={false}
-                          tickFormatter={(value) => `${value}kg`}
+                          tickFormatter={(value) => `${value}`} // Removed kg suffix, added to label
+                          width={35} // Give Y-axis more space
                          />
                          <Tooltip
                             cursor={{ fill: 'hsl(var(--muted))', radius: 4 }}
-                             contentStyle={{ background: 'hsl(var(--background))', border: '1px solid hsl(var(--border))', borderRadius: 'var(--radius)', fontSize: '12px', padding: '8px' }} // Style tooltip
-                             labelStyle={{ color: 'hsl(var(--foreground))', marginBottom: '4px' }}
+                             contentStyle={{ background: 'hsl(var(--background))', border: '1px solid hsl(var(--border))', borderRadius: 'var(--radius)', fontSize: '12px', padding: '8px' }} 
+                             labelStyle={{ color: 'hsl(var(--foreground))', marginBottom: '4px', fontWeight: 'bold' }}
                              itemStyle={{ color: 'hsl(var(--primary))' }}
-                            formatter={(value: number) => [`${value.toFixed(2)} kg CO₂e`, 'Total']}
+                            formatter={(value: number, name: string, props: any) => [`${value.toFixed(2)} kg CO₂e`, `Total for ${props.payload.name}`]}
                          />
-                         <Bar dataKey="totalCO2e" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} barSize={20} /> {/* Adjust barSize */}
+                         <Bar dataKey="totalCO2e" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} barSize={25} /> {/* Adjust barSize */}
                       </BarChart>
                     </ResponsiveContainer>
                   </CardContent>
                 </Card>
+
+                {/* Weekly Tip Card */}
+                <Card className="shadow-md md:col-span-1"> {/* Spans 1 column on md+ */}
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-base font-medium">💡 Weekly Tip</CardTitle>
+                        <Lightbulb className="h-5 w-5 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent className="pt-2 min-h-[100px] flex items-center justify-center">
+                        {isLoadingWeeklyTip ? (
+                            <div className="flex items-center text-muted-foreground">
+                                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                                <span>Generating your tip...</span>
+                            </div>
+                        ) : weeklyTip ? (
+                            <p className="text-sm text-foreground leading-relaxed">{weeklyTip}</p>
+                        ) : (
+                            <p className="text-sm text-muted-foreground">No tip available yet. Log some meals!</p>
+                        )}
+                    </CardContent>
+                </Card>
+                
+                {/* Empty 4th Card placeholder - can be removed or used later */}
+                <Card className="shadow-md md:col-span-1 bg-muted/30 border-dashed hidden md:flex items-center justify-center">
+                    <CardContent className="p-6 text-center">
+                        <p className="text-sm text-muted-foreground">Future insights here!</p>
+                    </CardContent>
+                </Card>
+
               </div>
            </TabsContent>
 
@@ -170,7 +205,7 @@ const ReportsPage: NextPage = () => {
                 <CardHeader>
                   <CardTitle className="text-lg font-semibold flex items-center">
                      <CalendarDays className="h-5 w-5 mr-2 text-primary"/>
-                     Daily Meal Logs
+                     Daily Meal Log History
                   </CardTitle>
                    <CardDescription>View your logged meals day by day, newest first.</CardDescription>
                 </CardHeader>
@@ -182,30 +217,30 @@ const ReportsPage: NextPage = () => {
                           <h3 className="text-md font-semibold mb-2 border-b pb-1">{format(parseISO(date), 'EEEE, MMMM do, yyyy')}</h3>
                           <ul className="space-y-3">
                             {dailyLogsGrouped[date].map((log, index) => (
-                               <li key={`${log.timestamp}-${index}`} className="flex items-center justify-between p-3 bg-card rounded-md border border-border/50 hover:bg-muted/50 transition-colors"> {/* Added key, padding, border, hover */}
-                                 <div className="flex items-center space-x-3 flex-1 min-w-0"> {/* Flex-1 and min-w-0 for truncation */}
+                               <li key={`${log.timestamp}-${index}`} className="flex items-center justify-between p-3 bg-card rounded-md border border-border/50 hover:bg-muted/50 transition-colors"> 
+                                 <div className="flex items-center space-x-3 flex-1 min-w-0"> 
                                    {log.photoDataUri ? (
                                      <img src={log.photoDataUri} alt={`Meal from ${format(parseISO(log.timestamp), 'p')}`} className="w-12 h-12 object-cover rounded-md border"/>
                                    ) : (
-                                     <div className="w-12 h-12 bg-secondary rounded-md flex items-center justify-center flex-shrink-0"> {/* flex-shrink-0 */}
+                                     <div className="w-12 h-12 bg-secondary rounded-md flex items-center justify-center flex-shrink-0"> 
                                         <Leaf className="w-6 h-6 text-muted-foreground"/>
                                      </div>
                                    )}
-                                    <div className="flex-1 min-w-0"> {/* Flex-1 and min-w-0 for truncation */}
-                                      <p className="text-sm font-medium truncate" title={log.foodItems.map(i => i.name).join(', ') || 'Logged Meal'}> {/* Truncate and add title */}
+                                    <div className="flex-1 min-w-0"> 
+                                      <p className="text-sm font-medium truncate" title={log.foodItems.map(i => i.name).join(', ') || 'Logged Meal'}> 
                                           {log.foodItems.map(i => i.name).join(', ') || 'Logged Meal'}
                                       </p>
-                                      <p className="text-xs text-muted-foreground">{format(parseISO(log.timestamp), 'p')}</p> {/* Time */}
+                                      <p className="text-xs text-muted-foreground">{format(parseISO(log.timestamp), 'p')}</p> 
                                     </div>
                                  </div>
-                                  <span className="text-sm font-semibold text-primary ml-3">{log.totalCarbonFootprint.toFixed(2)} kg CO₂e</span>
+                                  <span className="text-sm font-semibold text-primary ml-3 whitespace-nowrap">{log.totalCarbonFootprint.toFixed(2)} kg CO₂e</span>
                                </li>
                             ))}
                           </ul>
                          </div>
                       ))
                     ) : (
-                      <p className="text-muted-foreground text-center py-8">No meals logged yet.</p>
+                      <p className="text-muted-foreground text-center py-8">No meals logged yet. Start logging to see your history!</p>
                     )}
                   </ScrollArea>
                 </CardContent>
@@ -218,5 +253,3 @@ const ReportsPage: NextPage = () => {
  };
 
  export default ReportsPage;
-
-    

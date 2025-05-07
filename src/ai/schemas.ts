@@ -77,3 +77,31 @@ export const GenerateMealSuggestionOutputSchema = z.object({
  * TypeScript type inferred from the GenerateMealSuggestionOutputSchema.
  */
 export type GenerateMealSuggestionOutput = z.infer<typeof GenerateMealSuggestionOutputSchema>;
+
+
+// --- Weekly Tip Schemas ---
+
+/**
+ * Zod schema for the input required by the weekly tip generation AI flow.
+ */
+export const GenerateWeeklyTipInputSchema = z.object({
+  mealLogsSummary: z.string().describe("A multi-line string summarizing the user's meals over the last 7 days, including food items, quantities, and CO2e values, formatted day by day."),
+  // pastTips: z.array(z.string()).optional().describe("An optional list of previously generated tips to avoid repetition."),
+});
+
+/**
+ * TypeScript type inferred from the GenerateWeeklyTipInputSchema.
+ */
+export type GenerateWeeklyTipInput = z.infer<typeof GenerateWeeklyTipInputSchema>;
+
+/**
+ * Zod schema for the output produced by the weekly tip generation AI flow.
+ */
+export const GenerateWeeklyTipOutputSchema = z.object({
+  tip: z.string().describe('A 1-2 sentence friendly and specific suggestion for reducing carbon footprint based on weekly patterns.'),
+});
+
+/**
+ * TypeScript type inferred from the GenerateWeeklyTipOutputSchema.
+ */
+export type GenerateWeeklyTipOutput = z.infer<typeof GenerateWeeklyTipOutputSchema>;
