@@ -1,23 +1,21 @@
-
 "use client";
 
 import type { NextPage } from 'next';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input'; // Although not used directly, keep for consistency if needed later
+// import { Input } from '@/components/ui/input'; // Not used
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
-import { Loader2, CheckCircle, AlertTriangle, Sparkles } from 'lucide-react'; // Added Sparkles
+import { Loader2, CheckCircle, AlertTriangle } from 'lucide-react'; // Removed Sparkles as it's not used directly here
 import Header from '@/components/header';
 import { useAppContext } from '@/context/app-context';
-import { estimateCarbonFootprintFromMealPhoto } from '@/ai/flows/estimate-carbon-footprint'; // Import the AI flow function
-import { generateMealSuggestion } from '@/ai/flows/generate-meal-suggestion'; // Import the suggestion flow
-import type { EstimateCarbonFootprintFromMealPhotoOutput } from '@/ai/schemas'; // Import the AI flow output type from schemas
+import { estimateCarbonFootprintFromMealPhoto } from '@/ai/flows/estimate-carbon-footprint'; 
+import { generateMealSuggestion } from '@/ai/flows/generate-meal-suggestion'; 
+import type { EstimateCarbonFootprintFromMealPhotoOutput } from '@/ai/schemas'; 
 import { useToast } from "@/hooks/use-toast";
 
-// Define a threshold for triggering suggestions (e.g., 2.0 kg CO2e)
 const SUGGESTION_THRESHOLD_KG_CO2E = 2.0;
 
 const ReviewMealPage: NextPage = () => {
@@ -25,7 +23,7 @@ const ReviewMealPage: NextPage = () => {
   const { mealPhoto, setMealResult, addMealLog, user, isLoading: isAppContextLoading } = useAppContext();
   const [quantityAndUnits, setQuantityAndUnits] = useState('');
   const [isEstimating, setIsEstimating] = useState(false);
-  const [estimatingStep, setEstimatingStep] = useState(''); // To show progress
+  const [estimatingStep, setEstimatingStep] = useState(''); 
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
@@ -33,7 +31,6 @@ const ReviewMealPage: NextPage = () => {
     if (!isAppContextLoading && !user) {
       router.push('/login');
     } else if (!isAppContextLoading && !mealPhoto) {
-      // Redirect back if no photo is set (e.g., page refresh)
       toast({
         title: "No Meal Photo Found",
         description: "Please log a meal again.",
@@ -61,7 +58,7 @@ const ReviewMealPage: NextPage = () => {
 
     setIsEstimating(true);
     setError(null);
-    setEstimatingStep('Estimating footprint...'); // Initial step
+    setEstimatingStep('Estimating footprint...'); 
 
     let suggestion: string | null = null;
 
@@ -73,21 +70,18 @@ const ReviewMealPage: NextPage = () => {
       });
       console.log("AI Footprint Result:", result);
 
-      // Add to meal log immediately after getting the result
       if(user?.email) {
-         await addMealLog({
+         await addMealLog({ // Pass only necessary fields
            userEmail: user.email,
-           date: new Date().toISOString().split('T')[0], // YYYY-MM-DD format
+           // date and timestamp will be set in AppContext
            photoDataUri: mealPhoto,
            foodItems: result.foodItems,
            totalCarbonFootprint: result.carbonFootprintKgCO2e,
-           timestamp: new Date().toISOString(),
          });
       }
 
-       // Check if footprint is high enough for a suggestion
        if (result.carbonFootprintKgCO2e > SUGGESTION_THRESHOLD_KG_CO2E) {
-         setEstimatingStep('Generating suggestion...'); // Update step
+         setEstimatingStep('Generating suggestion...'); 
          console.log("Footprint is high, generating suggestion...");
           try {
             const suggestionResult = await generateMealSuggestion({
@@ -98,16 +92,14 @@ const ReviewMealPage: NextPage = () => {
             console.log("AI Suggestion Result:", suggestion);
           } catch (suggestionError) {
              console.error('Error generating suggestion:', suggestionError);
-             // Continue without suggestion, maybe log this error
              toast({
                title: "Suggestion Generation Failed",
                description: "Could not generate a meal suggestion, but the footprint was calculated.",
-               variant: "default", // Not destructive, as main task succeeded
+               variant: "default", 
              });
           }
        }
 
-      // Set result and suggestion (if any) in context
       setMealResult(result, suggestion);
 
       toast({
@@ -132,7 +124,7 @@ const ReviewMealPage: NextPage = () => {
       });
     } finally {
       setIsEstimating(false);
-      setEstimatingStep(''); // Clear step text
+      setEstimatingStep(''); 
     }
   };
 
@@ -141,7 +133,6 @@ const ReviewMealPage: NextPage = () => {
   }
 
   if (!mealPhoto) {
-     // Render minimal state while redirecting or show error
      return (
         <div className="flex flex-col min-h-screen bg-background">
             <Header title="Review Meal" />
@@ -227,4 +218,3 @@ const ReviewMealPage: NextPage = () => {
 };
 
 export default ReviewMealPage;
-

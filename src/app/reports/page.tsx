@@ -1,4 +1,3 @@
-
 "use client";
 
 import type { NextPage } from 'next';
@@ -7,7 +6,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
-import { format, subDays, eachDayOfInterval, parseISO } from 'date-fns';
+import { format, subDays, eachDayOfInterval, parseISO, startOfDay } from 'date-fns';
 import Header from '@/components/header';
 import { useAppContext } from '@/context/app-context';
 import type { MealLog } from '@/context/app-context';
@@ -16,7 +15,7 @@ import { Leaf, CalendarDays, Lightbulb, Loader2, Info } from 'lucide-react';
 // Utility to group logs by date
 const groupLogsByDate = (logs: MealLog[]): { [date: string]: MealLog[] } => {
   return logs.reduce((acc, log) => {
-    const date = log.date; // Assuming date is YYYY-MM-DD
+    const date = log.date; // Assuming date is YYYY-MM-DD (local)
     if (!acc[date]) {
       acc[date] = [];
     }
@@ -43,36 +42,38 @@ const ReportsPage: NextPage = () => {
   }, [user, mealLogs, fetchWeeklyTip]);
 
 
-  const today = useMemo(() => new Date(), []);
-  const sevenDaysAgo = useMemo(() => subDays(today, 6), [today]);
+  const todayDateObj = useMemo(() => startOfDay(new Date()), []); // Current date at midnight local time
+  const sevenDaysAgoDateObj = useMemo(() => startOfDay(subDays(todayDateObj, 6)), [todayDateObj]);
 
   // Calculate Totals
   const { dailyTotal, weeklyTotal, dailyLogsGrouped } = useMemo(() => {
     if (!mealLogs) return { dailyTotal: 0, weeklyTotal: 0, dailyLogsGrouped: {} };
 
-    const todayStr = format(today, 'yyyy-MM-dd');
+    const todayStr = format(todayDateObj, 'yyyy-MM-dd');
     let daily = 0;
     let weekly = 0;
 
     mealLogs.forEach(log => {
-      const logDate = parseISO(log.timestamp);
-      if (format(logDate, 'yyyy-MM-dd') === todayStr) {
+      // log.date is the local date string 'YYYY-MM-DD'
+      if (log.date === todayStr) {
         daily += log.totalCarbonFootprint;
       }
-      if (logDate >= sevenDaysAgo && logDate <= today) {
+      
+      const logDateObj = parseISO(log.date); // Parse 'YYYY-MM-DD' as local date
+      if (logDateObj >= sevenDaysAgoDateObj && logDateObj <= todayDateObj) {
         weekly += log.totalCarbonFootprint;
       }
     });
 
     const grouped = groupLogsByDate(mealLogs);
     return { dailyTotal: daily, weeklyTotal: weekly, dailyLogsGrouped: grouped };
-  }, [mealLogs, today, sevenDaysAgo]);
+  }, [mealLogs, todayDateObj, sevenDaysAgoDateObj]);
 
   // Prepare data for the 7-day graph
    const graphData = useMemo(() => {
      if (!mealLogs) return [];
 
-     const dateInterval = eachDayOfInterval({ start: sevenDaysAgo, end: today });
+     const dateInterval = eachDayOfInterval({ start: sevenDaysAgoDateObj, end: todayDateObj });
      const dailyTotalsMap = new Map<string, number>();
 
      dateInterval.forEach(day => {
@@ -80,20 +81,20 @@ const ReportsPage: NextPage = () => {
      });
 
      mealLogs.forEach(log => {
-       const dateStr = format(parseISO(log.timestamp), 'yyyy-MM-dd');
+       const dateStr = log.date; // Use the local date string from the log
        if (dailyTotalsMap.has(dateStr)) {
          dailyTotalsMap.set(dateStr, (dailyTotalsMap.get(dateStr) ?? 0) + log.totalCarbonFootprint);
        }
      });
      
      const data = Array.from(dailyTotalsMap.entries()).map(([date, total]) => ({
-       name: format(parseISO(date), 'EEE'), 
+       name: format(parseISO(date), 'EEE'), // date is 'YYYY-MM-DD', parseISO interprets as local
        totalCO2e: parseFloat(total.toFixed(2)), 
        fullDate: date, 
      }));
      data.sort((a, b) => parseISO(a.fullDate).getTime() - parseISO(b.fullDate).getTime());
      return data;
-   }, [mealLogs, sevenDaysAgo, today]);
+   }, [mealLogs, sevenDaysAgoDateObj, todayDateObj]);
 
   const handleBarClick = (data: any) => {
     if (data && data.activePayload && data.activePayload.length > 0) {
@@ -143,7 +144,7 @@ const ReportsPage: NextPage = () => {
             </CardHeader>
             <CardContent className="h-[220px] p-0 pr-2 pb-2">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={graphData} onClick={handleBarClick} margin={{ top: 5, right:10, left: 5, bottom: 5 }}>
+                <BarChart data={graphData} onClick={handleBarClick} margin={{ top: 5, right:10, left: -15, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
                   <XAxis
                     dataKey="name"
@@ -158,7 +159,7 @@ const ReportsPage: NextPage = () => {
                     tickLine={false}
                     axisLine={false}
                     tickFormatter={(value) => `${value}`}
-                    width={35}
+                    width={45} // Adjusted width for Y-axis labels
                   />
                   <Tooltip
                     cursor={{ fill: 'hsl(var(--muted))', radius: 4 }}

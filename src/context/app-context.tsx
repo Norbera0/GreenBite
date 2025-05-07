@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useMemo } from 'react';
@@ -17,8 +16,8 @@ interface User {
 
 export interface MealLog {
   userEmail: string;
-  date: string; // YYYY-MM-DD
-  timestamp: string; // ISO string for precise time
+  date: string; // YYYY-MM-DD (local date of the meal)
+  timestamp: string; // ISO string for precise time (UTC)
   photoDataUri: string;
   foodItems: FoodItem[];
   totalCarbonFootprint: number;
@@ -77,8 +76,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         const storedLogs = localStorage.getItem(MEAL_LOGS_STORAGE_KEY);
         if (storedLogs) {
           const logs: MealLog[] = JSON.parse(storedLogs);
-          logs.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-          setMealLogs(logs);
+          // Ensure logs always have a valid local date string if migrating old data
+          const migratedLogs = logs.map(log => ({
+            ...log,
+            date: log.date || format(parseISO(log.timestamp), 'yyyy-MM-dd') 
+          }));
+          migratedLogs.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+          setMealLogs(migratedLogs);
         }
     } catch (error) {
       console.error("Failed to load data from localStorage:", error);
@@ -104,10 +108,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setMealSuggestionState(null); 
     setWeeklyTip(null);
     localStorage.removeItem(USER_STORAGE_KEY);
-    // Optionally clear weekly tip for the logged-out user from localStorage if it was user-specific
-    // if (user?.email) {
-    //   localStorage.removeItem(`${WEEKLY_TIP_STORAGE_KEY_PREFIX}${user.email}`);
-    // }
     setIsLoading(false);
   }, []);
 
@@ -121,9 +121,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }, []);
 
 
-  const addMealLog = useCallback(async (log: MealLog) => {
+  const addMealLog = useCallback(async (newLogData: Omit<MealLog, 'date' | 'timestamp'> & { date?: string, timestamp?: string }) => {
+    // Ensure date is the local date and timestamp is UTC
+    const currentDate = new Date();
+    const logToAdd: MealLog = {
+      ...newLogData,
+      date: format(currentDate, 'yyyy-MM-dd'), // Use local date
+      timestamp: currentDate.toISOString(),     // Use UTC timestamp
+    };
+
     setMealLogs(prevLogs => {
-      const allLogs = [log, ...prevLogs];
+      const allLogs = [logToAdd, ...prevLogs];
       allLogs.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()); 
       localStorage.setItem(MEAL_LOGS_STORAGE_KEY, JSON.stringify(allLogs));
       return allLogs; 
@@ -150,7 +158,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         const cachedData: CachedWeeklyTip = JSON.parse(cachedDataString);
         const cacheDate = new Date(cachedData.timestamp);
         const today = new Date();
-        // Only use cache if it's from the same day
         if (differenceInCalendarDays(today, cacheDate) === 0 && cachedData.tip) {
           setWeeklyTip(cachedData.tip);
           setIsLoadingWeeklyTip(false);
@@ -158,7 +165,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         }
       } catch (e) {
         console.error("Error parsing cached weekly tip:", e);
-        localStorage.removeItem(cacheKey); // Clear corrupted cache
+        localStorage.removeItem(cacheKey); 
       }
     }
 
@@ -166,8 +173,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const sevenDaysAgo = subDays(today, 6);
 
     const recentLogs = currentUserMealLogs.filter(log => {
-      const logDate = parseISO(log.timestamp);
-      return logDate >= sevenDaysAgo && logDate <= today;
+      const logDateObj = parseISO(log.date); // log.date is 'YYYY-MM-DD' (local)
+      return logDateObj >= sevenDaysAgo && logDateObj <= today;
     });
 
     if (recentLogs.length === 0) {
@@ -176,10 +183,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       return;
     }
     
-    // Group logs by day for the summary string
     const logsByDay: { [key: string]: MealLog[] } = {};
     recentLogs.forEach(log => {
-        const dayKey = format(parseISO(log.timestamp), 'yyyy-MM-dd');
+        const dayKey = log.date; // log.date is already 'YYYY-MM-DD' (local)
         if (!logsByDay[dayKey]) {
             logsByDay[dayKey] = [];
         }
@@ -187,9 +193,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     });
 
     const mealLogsSummary = Object.entries(logsByDay)
-      .sort(([dateA], [dateB]) => parseISO(dateA).getTime() - parseISO(dateB).getTime()) // Sort by date
+      .sort(([dateA], [dateB]) => parseISO(dateA).getTime() - parseISO(dateB).getTime()) 
       .map(([date, logs], index) => {
-        const dayOfWeek = format(parseISO(date), 'EEEE (MMM d)');
+        const dayOfWeek = format(parseISO(date), 'EEEE (MMM d)'); // date is 'YYYY-MM-DD'
         const mealsString = logs.map(log => 
             `${log.foodItems.map(item => `${item.name} (${item.quantity})`).join(', ') || 'Logged Meal'} (Total: ${log.totalCarbonFootprint.toFixed(2)} kg CO₂e)`
         ).join('; ');
@@ -239,3 +245,4 @@ export const useAppContext = (): AppContextProps => {
   }
   return context;
 };
+
