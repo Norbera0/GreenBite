@@ -3,17 +3,18 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation'; // useRouter from next/navigation
+import { usePathname, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { Leaf, LogOut, ArrowLeft, PlusSquare } from 'lucide-react'; // Added PlusSquare for potential header action
+import { Leaf, LogOut, ArrowLeft } from 'lucide-react';
 import { useAppContext } from '@/context/app-context';
+import { cn } from '@/lib/utils';
 
 interface HeaderProps {
   title?: string;
   showBackButton?: boolean;
-  showTitle?: boolean; // New prop to control title visibility
-  actionIcon?: React.ReactNode; // Optional action icon for the right side
-  onActionClick?: () => void; // Optional handler for the action icon
+  showTitle?: boolean;
+  actionIcon?: React.ReactNode;
+  onActionClick?: () => void;
 }
 
 const Header: React.FC<HeaderProps> = ({ 
@@ -36,28 +37,36 @@ const Header: React.FC<HeaderProps> = ({
     router.back();
   };
 
-  // Determine if back button should be shown
-  // Show if manualShowBackButton is true, or if not on root and history is available
   const shouldShowBackButton = manualShowBackButton ?? (pathname !== '/' && typeof window !== 'undefined' && window.history.length > 1);
+  const isHomeTitle = title === "Home";
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-14 items-center">
-        <div className="flex items-center gap-1 flex-1"> {/* Left side takes available space */}
-          {shouldShowBackButton ? (
-            <Button variant="ghost" size="icon" onClick={handleBack} aria-label="Go back" className="mr-1">
+        {/* Left Section (Back button or Spacer for centered title) */}
+        <div className="flex items-center gap-1" style={{ minWidth: user ? '60px' : '40px' }}> {/* Reserve space for potential back button or logo */}
+          {shouldShowBackButton && (
+            <Button variant="ghost" size="icon" onClick={handleBack} aria-label="Go back">
               <ArrowLeft className="h-5 w-5" />
             </Button>
-          ) : (
+          )}
+          {!shouldShowBackButton && !isHomeTitle && ( // Show Leaf logo if not back button and not "Home" title (which will be centered)
              <Link href="/" className="flex items-center gap-2" aria-label="Go to homepage">
-               {/* Optionally hide Leaf icon on homepage if title is "Report" or similar */}
-               {title !== "Report" && <Leaf className="h-6 w-6 text-primary" />}
+               <Leaf className="h-6 w-6 text-primary" />
              </Link>
           )}
-          {showTitle && <h1 className="text-lg font-semibold text-primary truncate">{title}</h1>}
         </div>
 
-        <div className="flex items-center gap-2 ml-auto"> {/* Right side aligned to end */}
+        {/* Middle Section (Title) */}
+        <div className={cn(
+            "flex-1 text-primary", 
+            isHomeTitle ? "text-center" : (shouldShowBackButton ? "text-left" : "text-left ml-2")
+        )}>
+          {showTitle && <h1 className="text-lg font-semibold truncate">{title}</h1>}
+        </div>
+        
+        {/* Right Section (Actions, Logout) */}
+        <div className="flex items-center gap-2" style={{ minWidth: user ? '60px' : '40px', justifyContent: 'flex-end' }}> {/* Reserve space, align content to right */}
           {actionIcon && onActionClick && (
             <Button variant="ghost" size="icon" onClick={onActionClick} aria-label="Header action">
               {actionIcon}
@@ -69,12 +78,11 @@ const Header: React.FC<HeaderProps> = ({
               <span className="hidden sm:inline">Logout</span>
             </Button>
           )}
+           {!user && !actionIcon && <div style={{width: '40px'}}></div>} {/* Placeholder if no user and no action icon, to balance centering */}
         </div>
       </div>
     </header>
   );
 };
 
-// AutoHeader component to conditionally show back button based on path
-// Note: The previous AutoHeader logic was simplified. Direct prop control or usePathname is better.
 export default Header;
