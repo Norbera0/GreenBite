@@ -8,7 +8,7 @@ import Link from 'next/link';
 import { useAppContext } from '@/context/app-context';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Plus, Leaf, Utensils, CalendarDays, Clock, ArrowDown, ArrowUp, PlusCircle } from 'lucide-react';
+import { Plus, Leaf, Utensils, CalendarDays, Clock, ArrowDown, ArrowUp, PlusCircle, Apple } from 'lucide-react'; // Added Apple
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 import { format, subDays, eachDayOfInterval, parseISO, startOfDay, isSameDay, getHours, startOfWeek, endOfWeek } from 'date-fns';
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
@@ -233,18 +233,31 @@ const HomePage: NextPage = () => {
             ) : (
               <ScrollArea className="h-[300px] pr-3">
                 <ul className="space-y-4">
-                  {filteredMealsForSelectedDateTimeType.length === 0 && (
-                     <li className="text-center py-8 text-muted-foreground h-[220px] flex flex-col justify-center items-center">
-                       <CalendarDays className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                       No {selectedMealType.toLowerCase()} logged for {format(selectedDate, 'MMM dd, yyyy')}.
-                     </li>
-                  )}
+                  <li className="mb-3">
+                    <Link href="/log-meal" passHref legacyBehavior>
+                      <a className="flex items-center justify-between space-x-3 p-3 bg-card rounded-lg border border-dashed border-primary/50 shadow-sm hover:bg-secondary/50 transition-all cursor-pointer h-24"
+                         aria-label={`Add food to ${selectedMealType}`}
+                      >
+                        <div className="flex items-center space-x-3">
+                          <div className="w-20 h-20 bg-secondary/30 rounded-md flex items-center justify-center flex-shrink-0" data-ai-hint="plate food">
+                            <Apple className="w-8 h-8 text-primary/70" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-md font-semibold text-primary">
+                              Add Food to {selectedMealType}
+                            </p>
+                          </div>
+                        </div>
+                        <PlusCircle className="w-8 h-8 text-primary flex-shrink-0" />
+                      </a>
+                    </Link>
+                  </li>
                   {filteredMealsForSelectedDateTimeType.map((log, index) => (
                     <li key={log.timestamp + index} className="flex items-start space-x-3 p-3 bg-background rounded-lg border border-border/70 shadow-sm hover:shadow-md transition-shadow">
                       {log.photoDataUri ? (
                         <img data-ai-hint="food meal" src={log.photoDataUri} alt="Meal" className="w-20 h-20 object-cover rounded-md border" />
                       ) : (
-                        <div className="w-20 h-20 bg-secondary rounded-md flex items-center justify-center flex-shrink-0">
+                        <div className="w-20 h-20 bg-secondary rounded-md flex items-center justify-center flex-shrink-0" data-ai-hint="utensils plate">
                           <Utensils className="w-8 h-8 text-muted-foreground" />
                         </div>
                       )}
@@ -266,22 +279,6 @@ const HomePage: NextPage = () => {
                       </div>
                     </li>
                   ))}
-                   <li className="mt-2">
-                    <Link href="/log-meal" passHref legacyBehavior>
-                      <a className="flex items-start space-x-3 p-3 bg-card rounded-lg border border-dashed border-primary/50 shadow-sm hover:bg-secondary/50 transition-all cursor-pointer h-24 items-center"
-                         aria-label={`Add food to ${selectedMealType}`}
-                      >
-                        <div className="w-20 h-20 bg-secondary/30 rounded-md flex items-center justify-center flex-shrink-0">
-                          <PlusCircle className="w-8 h-8 text-primary" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-md font-semibold text-primary">
-                            Add Food to {selectedMealType}
-                          </p>
-                        </div>
-                      </a>
-                    </Link>
-                  </li>
                 </ul>
               </ScrollArea>
             )}
