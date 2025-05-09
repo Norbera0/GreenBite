@@ -15,6 +15,7 @@ import { format, subDays, eachDayOfInterval, parseISO, startOfDay, isSameDay } f
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import type { MealLog } from '@/context/app-context'; // Ensure MealLog type is imported
+import { cn } from '@/lib/utils'; // Import cn utility
 
 
 const HomePage: NextPage = () => {
@@ -209,3 +210,4 @@ const HomePage: NextPage = () => {
 };
 
 export default HomePage;
+
