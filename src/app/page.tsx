@@ -8,12 +8,12 @@ import Link from 'next/link';
 import { useAppContext } from '@/context/app-context';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Plus, Leaf, Utensils, CalendarDays, Clock } from 'lucide-react'; // Added CalendarDays, Clock
-import Header from '@/components/header';
+import { Plus, Leaf, Utensils, CalendarDays, Clock, ArrowDown, ArrowUp } from 'lucide-react';
+// Removed Header import as it's no longer used on this page
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 import { format, subDays, eachDayOfInterval, parseISO, startOfDay, isSameDay, getHours } from 'date-fns';
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"; // Removed TabsContent as we are not using it here.
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { MealLog } from '@/context/app-context';
 import { cn } from '@/lib/utils';
 
@@ -22,7 +22,7 @@ const HomePage: NextPage = () => {
   const { user, mealLogs, isLoading } = useAppContext();
   const router = useRouter();
   const [selectedDate, setSelectedDate] = useState<Date>(startOfDay(new Date()));
-  const [selectedMealType, setSelectedMealType] = useState<string>("Breakfast"); // Default to Breakfast
+  const [selectedMealType, setSelectedMealType] = useState<string>("Breakfast"); 
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -52,13 +52,21 @@ const HomePage: NextPage = () => {
       }
     });
     
-    const numDaysForAverage = daysWithLogs.size > 0 ? daysWithLogs.size : 1; // Avoid division by zero
+    const numDaysForAverage = daysWithLogs.size > 0 ? daysWithLogs.size : 1;
     return { 
       todaysTotalCO2e: daily, 
       weeklyTotalCO2e: weekly, 
       averageDailyCO2e: weekly / numDaysForAverage
     };
   }, [mealLogs, todayDateObj, sevenDaysAgoDateObj]);
+
+  // Placeholder for percentage change calculations
+  // TODO: Implement actual calculation logic for these percentage changes.
+  // avgDailyChange: (currentAvg - prevAvg) / prevAvg * 100
+  // weeklyChange: (currentWeeklyTotal - prevWeeklyTotal) / prevWeeklyTotal * 100
+  const avgDailyChange = { value: 1.7, direction: 'down' as 'down' | 'up' | 'neutral' };
+  const weeklyChange = { value: 5.3, direction: 'up' as 'down' | 'up' | 'neutral' };
+
 
   const graphData = useMemo(() => {
     if (!mealLogs) return [];
@@ -85,7 +93,7 @@ const HomePage: NextPage = () => {
   }, [mealLogs, sevenDaysAgoDateObj, todayDateObj]);
   
   const dateScrollerDates = useMemo(() => {
-    return eachDayOfInterval({ start: sevenDaysAgoDateObj, end: todayDateObj }); // Oldest to newest
+    return eachDayOfInterval({ start: sevenDaysAgoDateObj, end: todayDateObj });
   }, [sevenDaysAgoDateObj, todayDateObj]);
 
 
@@ -98,11 +106,11 @@ const HomePage: NextPage = () => {
       const logHour = getHours(parseISO(log.timestamp));
       switch (selectedMealType) {
         case "Breakfast":
-          return logHour >= 4 && logHour < 10; // 4:00 AM - 9:59 AM
+          return logHour >= 4 && logHour < 10; 
         case "Lunch":
-          return logHour >= 10 && logHour < 18; // 10:00 AM - 5:59 PM
+          return logHour >= 10 && logHour < 18; 
         case "Dinner":
-          return logHour >= 18 || logHour < 4; // 6:00 PM - 3:59 AM (next day)
+          return logHour >= 18 || logHour < 4; 
         default:
           return false;
       }
@@ -118,29 +126,53 @@ const HomePage: NextPage = () => {
 
   return (
     <div className="flex flex-col min-h-screen bg-secondary/30">
-      <Header title="Home" />
-      
+      {/* Header component removed, page title added directly */}
       <main className="flex-grow container mx-auto p-4 space-y-6">
-        <Card className="bg-primary/5 shadow-lg border-primary/20">
-          <CardContent className="p-4 flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-2">
-            <div className="flex-1 text-center py-2">
-              <p className="text-xs font-medium text-primary/80 uppercase">As of Today</p>
-              <p className="text-4xl font-bold text-primary">{todaysTotalCO2e.toFixed(2)}</p>
-              <p className="text-sm text-primary/90">kg CO₂e</p>
+        <h1 className="text-2xl sm:text-3xl font-bold text-center text-primary my-4">
+          Your Dietary Climate Impact
+        </h1>
+
+        {/* New Stats Panel Card */}
+        <Card className="bg-primary-light shadow-lg border-primary/20">
+          <CardContent className="p-4 md:p-6 flex flex-row">
+            {/* Left Section */}
+            <div className="flex-1 text-center pr-3 md:pr-6 py-2">
+              <p className="text-xs font-bold uppercase text-primary/80 tracking-wider mb-1">AS OF TODAY</p>
+              <p className="text-6xl md:text-7xl font-bold text-primary my-1">{todaysTotalCO2e.toFixed(0)}</p>
+              <p className="text-base md:text-lg text-muted-foreground">kg CO₂e</p>
             </div>
-            <div className="border-l border-primary/20 hidden sm:block"></div>
-            <hr className="border-primary/10 sm:hidden" />
-            <div className="flex-1 space-y-2 py-2">
+
+            {/* Vertical Divider */}
+            <div className="border-l border-primary/30"></div>
+
+            {/* Right Section */}
+            <div className="flex-1 pl-3 md:pl-6 flex flex-col justify-around">
+              {/* Ave. Daily */}
               <div className="text-center">
-                <p className="text-xs font-medium text-primary/80 uppercase">Avg. Daily (Last 7 Days)</p>
-                <p className="text-2xl font-semibold text-primary">{averageDailyCO2e.toFixed(2)}</p>
-                <p className="text-xs text-primary/90">kg CO₂e</p>
+                <p className="text-xs font-bold uppercase text-primary/80 tracking-wider mb-1">AVE. DAILY</p>
+                <div className="flex items-baseline justify-center space-x-1 md:space-x-2">
+                  <p className="text-4xl md:text-5xl font-bold text-muted-foreground">{averageDailyCO2e.toFixed(0)}</p>
+                  <span className={`text-sm md:text-base font-medium flex items-center ${avgDailyChange.direction === 'down' ? 'text-destructive' : 'text-primary'}`}>
+                    {avgDailyChange.direction === 'down' ? <ArrowDown className="w-4 h-4" /> : <ArrowUp className="w-4 h-4" />}
+                    {avgDailyChange.value.toFixed(1)}%
+                  </span>
+                </div>
+                <p className="text-base md:text-lg text-muted-foreground">kg CO₂e</p>
               </div>
-              <hr className="border-primary/10"/>
+
+              <hr className="border-primary/20 my-2 md:my-3" />
+
+              {/* Over Last 7 Days */}
               <div className="text-center">
-                <p className="text-xs font-medium text-primary/80 uppercase">Total Weekly (Last 7 Days)</p>
-                 <p className="text-2xl font-semibold text-primary">{weeklyTotalCO2e.toFixed(2)}</p>
-                <p className="text-xs text-primary/90">kg CO₂e</p>
+                <p className="text-xs font-bold uppercase text-primary/80 tracking-wider mb-1">OVER THE LAST 7 DAYS</p>
+                <div className="flex items-baseline justify-center space-x-1 md:space-x-2">
+                  <p className="text-4xl md:text-5xl font-bold text-muted-foreground">{weeklyTotalCO2e.toFixed(0)}</p>
+                  <span className={`text-sm md:text-base font-medium flex items-center ${weeklyChange.direction === 'down' ? 'text-destructive' : 'text-primary'}`}>
+                    {weeklyChange.direction === 'down' ? <ArrowDown className="w-4 h-4" /> : <ArrowUp className="w-4 h-4" />}
+                    {weeklyChange.value.toFixed(1)}%
+                  </span>
+                </div>
+                <p className="text-base md:text-lg text-muted-foreground">kg CO₂e</p>
               </div>
             </div>
           </CardContent>
@@ -262,3 +294,4 @@ const HomePage: NextPage = () => {
 };
 
 export default HomePage;
+
