@@ -1,3 +1,4 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -8,75 +9,80 @@ body {
 
 @layer base {
   :root {
-    --background: 60 56% 91%; /* Light Beige */
-    --foreground: 240 10% 3.9%; /* Default Dark Text */
-    --card: 60 56% 95%; /* Slightly lighter beige for cards */
+    --background: 60 56% 96%; /* Slightly Lighter Beige for overall app background */
+    --foreground: 240 10% 3.9%; 
+    --card: 60 56% 100%; /* White for cards */
     --card-foreground: 240 10% 3.9%;
     --popover: 60 56% 91%;
     --popover-foreground: 240 10% 3.9%;
-    --primary: 120 39% 49%; /* Green */
-    --primary-foreground: 60 100% 98%; /* White/Very Light */
-    --secondary: 60 20% 88%; /* Slightly darker beige */
-    --secondary-foreground: 120 39% 29%; /* Darker Green */
+    --primary: 120 45% 40%; /* Main Green - slightly darker/richer */
+    --primary-foreground: 0 0% 98%; /* White/Very Light */
+    --primary-light: 120 40% 90%; /* Very Light Green for card backgrounds like stats */
+    --secondary: 60 30% 92%; /* Lighter beige for secondary elements */
+    --secondary-foreground: 120 39% 29%; 
     --muted: 60 20% 88%;
-    --muted-foreground: 240 4% 46%; /* Grayish */
-    --accent: 16 100% 63%; /* Orange */
-    --accent-foreground: 0 0% 98%; /* White/Very Light */
+    --muted-foreground: 240 4% 46%; 
+    --accent: 45 90% 55%; /* Vibrant Green/Yellow for FAB - was Orange */
+    --accent-foreground: 240 10% 3.9%; /* Dark text on accent */
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
-    --border: 60 15% 80%; /* Lighter Grayish Beige */
-    --input: 60 15% 85%; /* Lighter Grayish Beige */
-    --ring: 120 39% 49%; /* Green */
-    --chart-1: 120 39% 49%; /* Green */
-    --chart-2: 16 100% 63%; /* Orange */
-    --chart-3: 40 50% 60%; /* Yellowish-Brown */
-    --chart-4: 200 40% 55%; /* Bluish */
-    --chart-5: 0 60% 65%; /* Reddish */
+    --border: 60 15% 85%; /* Adjusted border */
+    --input: 60 15% 90%; /* Adjusted input */
+    --ring: 120 45% 40%; /* Main Green for ring */
+    --chart-1: 120 45% 40%; /* Green */
+    --chart-2: 340 90% 65%; /* Pink/Red for line graph */
+    --chart-3: 40 50% 60%; 
+    --chart-4: 200 40% 55%; 
+    --chart-5: 0 60% 65%; 
     --radius: 0.5rem;
-    --sidebar-background: 60 56% 91%; /* Light Beige */
+    
+    /* Sidebar specific colors - may not be used if sidebar is removed for mobile-first */
+    --sidebar-background: 60 56% 91%; 
     --sidebar-foreground: 240 10% 3.9%;
-    --sidebar-primary: 120 39% 49%; /* Green */
-    --sidebar-primary-foreground: 60 100% 98%; /* White/Very Light */
-    --sidebar-accent: 16 100% 63%; /* Orange */
-    --sidebar-accent-foreground: 0 0% 98%; /* White/Very Light */
-    --sidebar-border: 60 15% 80%; /* Lighter Grayish Beige */
-    --sidebar-ring: 16 100% 63%; /* Orange */
+    --sidebar-primary: 120 39% 49%; 
+    --sidebar-primary-foreground: 60 100% 98%;
+    --sidebar-accent: 16 100% 63%; 
+    --sidebar-accent-foreground: 0 0% 98%; 
+    --sidebar-border: 60 15% 80%; 
+    --sidebar-ring: 16 100% 63%; 
   }
 
   .dark {
     /* Define dark mode colors if needed, for now using light mode values */
     --background: 240 10% 3.9%;
     --foreground: 0 0% 98%;
-    --card: 240 10% 3.9%;
+    --card: 240 10% 8%; /* Darker card for dark mode */
     --card-foreground: 0 0% 98%;
     --popover: 240 10% 3.9%;
     --popover-foreground: 0 0% 98%;
-    --primary: 120 39% 49%; /* Green */
-    --primary-foreground: 60 100% 98%; /* White/Very Light */
+    --primary: 120 45% 55%; /* Lighter Green for dark mode */
+    --primary-foreground: 240 10% 3.9%;
+    --primary-light: 120 40% 15%; /* Darker shade of light green for dark mode */
     --secondary: 240 3.7% 15.9%;
     --secondary-foreground: 0 0% 98%;
     --muted: 240 3.7% 15.9%;
     --muted-foreground: 240 5% 64.9%;
-    --accent: 16 100% 63%; /* Orange */
-    --accent-foreground: 0 0% 98%; /* White/Very Light */
+    --accent: 45 80% 65%; /* Adjusted accent for dark mode */
+    --accent-foreground: 240 10% 3.9%;
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 0 0% 98%;
-    --border: 240 3.7% 15.9%;
+    --border: 240 3.7% 20%; /* Adjusted border for dark mode */
     --input: 240 3.7% 15.9%;
-    --ring: 120 39% 49%; /* Green */
-    --chart-1: 120 39% 49%; /* Green */
-    --chart-2: 16 100% 63%; /* Orange */
-    --chart-3: 40 50% 60%;
-    --chart-4: 200 40% 55%;
-    --chart-5: 0 60% 65%;
+    --ring: 120 45% 55%; /* Lighter Green ring for dark mode */
+    --chart-1: 120 45% 55%;
+    --chart-2: 340 80% 70%;
+    --chart-3: 40 50% 70%;
+    --chart-4: 200 40% 65%;
+    --chart-5: 0 60% 70%;
+
     --sidebar-background: 240 10% 3.9%;
     --sidebar-foreground: 0 0% 98%;
-    --sidebar-primary: 120 39% 49%; /* Green */
-    --sidebar-primary-foreground: 60 100% 98%; /* White/Very Light */
-    --sidebar-accent: 16 100% 63%; /* Orange */
-    --sidebar-accent-foreground: 0 0% 98%; /* White/Very Light */
+    --sidebar-primary: 120 39% 49%;
+    --sidebar-primary-foreground: 60 100% 98%;
+    --sidebar-accent: 16 100% 63%;
+    --sidebar-accent-foreground: 0 0% 98%;
     --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 16 100% 63%; /* Orange */
+    --sidebar-ring: 16 100% 63%;
   }
 }
 

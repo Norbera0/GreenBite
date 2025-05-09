@@ -1,20 +1,31 @@
+
 "use client";
 
 import React from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation'; // useRouter from next/navigation
 import { Button } from '@/components/ui/button';
-import { Leaf, LogOut, ArrowLeft } from 'lucide-react';
+import { Leaf, LogOut, ArrowLeft, PlusSquare } from 'lucide-react'; // Added PlusSquare for potential header action
 import { useAppContext } from '@/context/app-context';
 
 interface HeaderProps {
   title?: string;
   showBackButton?: boolean;
+  showTitle?: boolean; // New prop to control title visibility
+  actionIcon?: React.ReactNode; // Optional action icon for the right side
+  onActionClick?: () => void; // Optional handler for the action icon
 }
 
-const Header: React.FC<HeaderProps> = ({ title = "EcoPlate", showBackButton = false }) => {
+const Header: React.FC<HeaderProps> = ({ 
+  title = "EcoPlate", 
+  showBackButton: manualShowBackButton, 
+  showTitle = true,
+  actionIcon,
+  onActionClick
+}) => {
   const { user, logout } = useAppContext();
   const router = useRouter();
+  const pathname = usePathname();
 
   const handleLogout = async () => {
     await logout();
@@ -25,33 +36,38 @@ const Header: React.FC<HeaderProps> = ({ title = "EcoPlate", showBackButton = fa
     router.back();
   };
 
+  // Determine if back button should be shown
+  // Show if manualShowBackButton is true, or if not on root and history is available
+  const shouldShowBackButton = manualShowBackButton ?? (pathname !== '/' && typeof window !== 'undefined' && window.history.length > 1);
+
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container flex h-14 items-center justify-between">
-        <div className="flex items-center gap-2">
-          {showBackButton ? (
-            <Button variant="ghost" size="icon" onClick={handleBack} aria-label="Go back">
+      <div className="container flex h-14 items-center">
+        <div className="flex items-center gap-1 flex-1"> {/* Left side takes available space */}
+          {shouldShowBackButton ? (
+            <Button variant="ghost" size="icon" onClick={handleBack} aria-label="Go back" className="mr-1">
               <ArrowLeft className="h-5 w-5" />
             </Button>
           ) : (
              <Link href="/" className="flex items-center gap-2" aria-label="Go to homepage">
-               <Leaf className="h-6 w-6 text-primary" />
+               {/* Optionally hide Leaf icon on homepage if title is "Report" or similar */}
+               {title !== "Report" && <Leaf className="h-6 w-6 text-primary" />}
              </Link>
           )}
-           <h1 className="text-lg font-semibold text-primary">{title}</h1>
+          {showTitle && <h1 className="text-lg font-semibold text-primary truncate">{title}</h1>}
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 ml-auto"> {/* Right side aligned to end */}
+          {actionIcon && onActionClick && (
+            <Button variant="ghost" size="icon" onClick={onActionClick} aria-label="Header action">
+              {actionIcon}
+            </Button>
+          )}
           {user && (
-            <>
-              {/* <span className="text-sm text-muted-foreground hidden sm:inline">
-                {user.name}
-              </span> */}
-              <Button variant="ghost" size="sm" onClick={handleLogout} aria-label="Log out">
-                <LogOut className="h-4 w-4" />
-                 <span className="ml-1 hidden sm:inline">Logout</span>
-              </Button>
-            </>
+            <Button variant="ghost" size="sm" onClick={handleLogout} aria-label="Log out">
+              <LogOut className="h-4 w-4 sm:mr-1" />
+              <span className="hidden sm:inline">Logout</span>
+            </Button>
           )}
         </div>
       </div>
@@ -59,15 +75,6 @@ const Header: React.FC<HeaderProps> = ({ title = "EcoPlate", showBackButton = fa
   );
 };
 
-// Automatically show back button if not on the home page
-const AutoHeader: React.FC<Omit<HeaderProps, 'showBackButton'>> = (props) => {
-  const router = useRouter();
-  // Cannot use usePathname here as it triggers dynamic rendering, affecting build
-  // Simple check based on title prop or lack thereof
-   const isHomePage = !props.title || props.title === "EcoPlate"; // Approximation
-
-  return <Header {...props} showBackButton={!isHomePage && typeof window !== 'undefined' && window.history.length > 1} />;
-};
-
-
-export default AutoHeader; // Export the auto-detecting version
+// AutoHeader component to conditionally show back button based on path
+// Note: The previous AutoHeader logic was simplified. Direct prop control or usePathname is better.
+export default Header;

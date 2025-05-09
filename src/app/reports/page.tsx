@@ -1,3 +1,4 @@
+
 "use client";
 
 import type { NextPage } from 'next';
@@ -36,13 +37,13 @@ const ReportsPage: NextPage = () => {
   }, [user, isLoading, router]);
 
   useEffect(() => {
-    if (user && mealLogs.length > 0) {
+    if (user && mealLogs.length > 0 && !weeklyTip && !isLoadingWeeklyTip) { // Fetch only if no tip and not already loading
       fetchWeeklyTip();
     }
-  }, [user, mealLogs, fetchWeeklyTip]);
+  }, [user, mealLogs, weeklyTip, isLoadingWeeklyTip, fetchWeeklyTip]);
 
 
-  const todayDateObj = useMemo(() => startOfDay(new Date()), []); // Current date at midnight local time
+  const todayDateObj = useMemo(() => startOfDay(new Date()), []); 
   const sevenDaysAgoDateObj = useMemo(() => startOfDay(subDays(todayDateObj, 6)), [todayDateObj]);
 
   // Calculate Totals
@@ -54,12 +55,11 @@ const ReportsPage: NextPage = () => {
     let weekly = 0;
 
     mealLogs.forEach(log => {
-      // log.date is the local date string 'YYYY-MM-DD'
       if (log.date === todayStr) {
         daily += log.totalCarbonFootprint;
       }
       
-      const logDateObj = parseISO(log.date); // Parse 'YYYY-MM-DD' as local date
+      const logDateObj = parseISO(log.date); 
       if (logDateObj >= sevenDaysAgoDateObj && logDateObj <= todayDateObj) {
         weekly += log.totalCarbonFootprint;
       }
@@ -81,14 +81,14 @@ const ReportsPage: NextPage = () => {
      });
 
      mealLogs.forEach(log => {
-       const dateStr = log.date; // Use the local date string from the log
+       const dateStr = log.date; 
        if (dailyTotalsMap.has(dateStr)) {
          dailyTotalsMap.set(dateStr, (dailyTotalsMap.get(dateStr) ?? 0) + log.totalCarbonFootprint);
        }
      });
      
      const data = Array.from(dailyTotalsMap.entries()).map(([date, total]) => ({
-       name: format(parseISO(date), 'EEE'), // date is 'YYYY-MM-DD', parseISO interprets as local
+       name: format(parseISO(date), 'EEE'), 
        totalCO2e: parseFloat(total.toFixed(2)), 
        fullDate: date, 
      }));
@@ -116,7 +116,7 @@ const ReportsPage: NextPage = () => {
   return (
     <div className="flex flex-col min-h-screen bg-background">
       <Header title="Reports" />
-      <main className="flex-grow container mx-auto p-4">
+      <main className="flex-grow container mx-auto p-4"> {/* Ensure main content has padding */}
         <div className="grid gap-6 md:grid-cols-2">
           {/* Totals Card */}
           <Card className="shadow-md">
@@ -144,7 +144,7 @@ const ReportsPage: NextPage = () => {
             </CardHeader>
             <CardContent className="h-[220px] p-0 pr-2 pb-2">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={graphData} onClick={handleBarClick} margin={{ top: 5, right:10, left: -15, bottom: 5 }}>
+                <BarChart data={graphData} onClick={handleBarClick} margin={{ top: 5, right:10, left: -25, bottom: 5 }}> {/* Adjusted left margin */}
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
                   <XAxis
                     dataKey="name"
@@ -159,7 +159,7 @@ const ReportsPage: NextPage = () => {
                     tickLine={false}
                     axisLine={false}
                     tickFormatter={(value) => `${value}`}
-                    width={45} // Adjusted width for Y-axis labels
+                    width={45} 
                   />
                   <Tooltip
                     cursor={{ fill: 'hsl(var(--muted))', radius: 4 }}
@@ -189,7 +189,11 @@ const ReportsPage: NextPage = () => {
               ) : weeklyTip ? (
                 <p className="text-sm text-foreground leading-relaxed">{weeklyTip}</p>
               ) : (
-                <p className="text-sm text-muted-foreground">No tip available yet. Log some meals!</p>
+                 mealLogs.length === 0 ? (
+                   <p className="text-sm text-muted-foreground">Log some meals to get your first weekly tip!</p>
+                 ) : (
+                   <p className="text-sm text-muted-foreground">Your weekly tip is being prepared. Check back soon!</p>
+                 )
               )}
             </CardContent>
           </Card>
@@ -205,7 +209,7 @@ const ReportsPage: NextPage = () => {
                 {selectedDateForLogView ? `Details for the selected day.` : 'Click a day on the graph above to view meals.'}
               </CardDescription>
             </CardHeader>
-            <CardContent className="h-[220px] p-0">
+            <CardContent className="h-[220px] p-0"> {/* Ensure content area has defined height */}
               <ScrollArea className="h-full w-full p-3 pr-4">
                 {!selectedDateForLogView ? (
                   <p className="text-muted-foreground text-center py-8">Click a day on the graph to view meals.</p>
@@ -253,4 +257,3 @@ const ReportsPage: NextPage = () => {
 };
 
 export default ReportsPage;
-
