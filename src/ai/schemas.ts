@@ -285,6 +285,37 @@ export const GenerateWeeklyChallengeOutputSchema = z.object({
 export type GenerateWeeklyChallengeOutput = z.infer<typeof GenerateWeeklyChallengeOutputSchema>;
 
 
+// --- Carbon Equivalency Schemas ---
+export const GenerateCarbonEquivalencyInputSchema = z.object({
+  carbonFootprintKgCO2e: z.number().describe("The total carbon footprint of the meal in kg CO2e."),
+});
+export type GenerateCarbonEquivalencyInput = z.infer<typeof GenerateCarbonEquivalencyInputSchema>;
+
+export const GenerateCarbonEquivalencyOutputSchema = z.object({
+  equivalency: z.string().describe("A short, relatable carbon footprint equivalency statement."),
+});
+export type GenerateCarbonEquivalencyOutput = z.infer<typeof GenerateCarbonEquivalencyOutputSchema>;
+
+
+// --- Meal Feedback Schemas ---
+export const MealImpactLevelSchema = z.enum(['High', 'Medium', 'Low']);
+export type MealImpactLevel = z.infer<typeof MealImpactLevelSchema>;
+
+export const GenerateMealFeedbackInputSchema = z.object({
+  foodItems: z.array(FoodItemSchema).describe("The list of food items in the meal."),
+  carbonFootprintKgCO2e: z.number().describe("The total carbon footprint of the meal in kg CO2e."),
+  // Optional: Consider adding user's recent trends or preferences if available
+  // userTrends: z.string().optional().describe("Summary of user's recent eating habits or goals."),
+});
+export type GenerateMealFeedbackInput = z.infer<typeof GenerateMealFeedbackInputSchema>;
+
+export const GenerateMealFeedbackOutputSchema = z.object({
+  feedbackMessage: z.string().describe("A personalized feedback message based on the meal's carbon impact."),
+  impactLevel: MealImpactLevelSchema.describe("The categorized impact level of the meal (High, Medium, or Low)."),
+});
+export type GenerateMealFeedbackOutput = z.infer<typeof GenerateMealFeedbackOutputSchema>;
+
+
 // Re-exporting existing weekly tip schemas for clarity, though they are now generalized to GenerateTipInputSchema/OutputSchema
 export { GenerateTipInputSchema as GenerateWeeklyTipInputSchema, GenerateTipOutputSchema as GenerateWeeklyTipOutputSchema};
 export type { GenerateTipInput as GenerateWeeklyTipInput, GenerateTipOutput as GenerateWeeklyTipOutput };

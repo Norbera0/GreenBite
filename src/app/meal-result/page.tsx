@@ -3,22 +3,21 @@
 
 import type { NextPage } from 'next';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Leaf, Utensils, Home, Sparkles, Info, AlertTriangle, Loader2 } from 'lucide-react';
+import { Leaf, Utensils, Home, Sparkles, Info, AlertTriangle, Loader2, Zap, MessageCircle } from 'lucide-react'; // Added Zap, MessageCircle
 import Header from '@/components/header';
 import { useAppContext } from '@/context/app-context';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
+import { cn } from '@/lib/utils'; // For conditional styling
 
 const MealResultPage: NextPage = () => {
   const router = useRouter();
-  const { mealResult, mealPhoto, mealSuggestion, user, isLoading, setMealPhoto, setMealResult: clearMealResultAppContext } = useAppContext();
-  const [showSuggestionDetails, setShowSuggestionDetails] = useState(false);
+  const { mealResult, mealPhoto, user, isLoading, setMealPhoto, setMealResult: clearMealResultAppContext } = useAppContext();
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -29,8 +28,8 @@ const MealResultPage: NextPage = () => {
   }, [user, mealResult, isLoading, router]);
 
   const handleGoBackHome = () => {
-    setMealPhoto(null); // Clear photo from context
-    clearMealResultAppContext(null); // Clear meal result from context
+    setMealPhoto(null); 
+    clearMealResultAppContext(null); 
     router.push('/');
   };
 
@@ -66,8 +65,37 @@ const MealResultPage: NextPage = () => {
     );
   }
 
-  // foodItems are now directly from mealResult (user-confirmed list)
-  const { foodItems = [], carbonFootprintKgCO2e = 0 } = mealResult;
+  const { 
+    foodItems = [], 
+    carbonFootprintKgCO2e = 0,
+    carbonEquivalency,
+    mealFeedbackMessage,
+    impactLevel 
+  } = mealResult;
+
+  const getImpactAlertVariant = () => {
+    if (impactLevel === 'High') return 'destructive';
+    if (impactLevel === 'Medium') return 'default'; // Or a custom 'warning' variant if defined
+    if (impactLevel === 'Low') return 'default'; // Or a custom 'success' variant if defined
+    return 'default';
+  };
+  
+  const getImpactAlertIcon = () => {
+    if (impactLevel === 'High') return <AlertTriangle className="h-5 w-5 text-destructive" />;
+    if (impactLevel === 'Medium') return <Info className="h-5 w-5 text-primary" />; // Using primary for medium
+    if (impactLevel === 'Low') return <CheckCircle className="h-5 w-5 text-green-500" />; // CheckCircle for low impact
+    return <Sparkles className="h-5 w-5 text-accent" />;
+  };
+
+  // Helper for styling impact alert based on level
+  const impactAlertClasses = cn(
+    "border",
+    impactLevel === 'High' ? "bg-destructive/10 border-destructive/30 text-destructive" :
+    impactLevel === 'Medium' ? "bg-primary/10 border-primary/30 text-primary" :
+    impactLevel === 'Low' ? "bg-green-500/10 border-green-500/30 text-green-700" :
+    "bg-accent/10 border-accent/30" // Default if no level
+  );
+
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
@@ -77,9 +105,9 @@ const MealResultPage: NextPage = () => {
           <CardHeader>
             <div className="flex justify-center mb-4">
               {mealPhoto ? (
-                <img src={mealPhoto} alt="Meal" className="w-32 h-32 object-cover rounded-lg border" />
+                <img src={mealPhoto} alt="Meal" className="w-32 h-32 object-cover rounded-lg border" data-ai-hint="logged meal" />
               ) : (
-                <div className="w-32 h-32 bg-secondary rounded-lg flex items-center justify-center border">
+                <div className="w-32 h-32 bg-secondary rounded-lg flex items-center justify-center border" data-ai-hint="utensils plate">
                   <Utensils className="w-12 h-12 text-muted-foreground" />
                 </div>
               )}
@@ -97,16 +125,26 @@ const MealResultPage: NextPage = () => {
               </p>
             </div>
 
-            {mealSuggestion && (
-              <Alert variant="default" className="bg-accent/10 border-accent/30">
-                <Sparkles className="h-5 w-5 text-accent" />
-                <AlertTitle className="text-accent font-semibold">GreenBite Suggestion</AlertTitle>
-                <AlertDescription className="text-accent/90">
-                  {mealSuggestion}
+            {carbonEquivalency && (
+              <Alert variant="default" className="bg-secondary/50 border-border">
+                <Zap className="h-5 w-5 text-primary" />
+                <AlertTitle className="text-primary font-semibold">Did You Know?</AlertTitle>
+                <AlertDescription className="text-foreground/80">
+                  {carbonEquivalency}
                 </AlertDescription>
-                {/* Button for more details can be added later */}
               </Alert>
             )}
+            
+            {mealFeedbackMessage && (
+              <Alert className={impactAlertClasses} variant={getImpactAlertVariant()}>
+                {getImpactAlertIcon()}
+                <AlertTitle className="font-semibold">GreenBite Feedback</AlertTitle>
+                <AlertDescription>
+                  {mealFeedbackMessage}
+                </AlertDescription>
+              </Alert>
+            )}
+
 
             <div>
               <h3 className="text-lg font-semibold mb-2 flex items-center"><Leaf className="w-4 h-4 mr-2 text-primary" />Confirmed Item Breakdown</h3>
@@ -169,3 +207,4 @@ const MealResultPage: NextPage = () => {
 };
 
 export default MealResultPage;
+```

@@ -12,3 +12,6 @@ import '@/ai/flows/ask-ai-chatbot.ts';
 import '@/ai/flows/generate-daily-challenge.ts'; 
 import '@/ai/flows/generate-weekly-challenge.ts';
 import '@/ai/flows/legacy-estimate-carbon-footprint.ts'; // If keeping legacy flow
+import '@/ai/flows/generate-carbon-equivalency.ts'; // Added new flow
+import '@/ai/flows/generate-meal-feedback.ts'; // Added new flow
+```

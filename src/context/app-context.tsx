@@ -2,7 +2,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useMemo } from 'react';
-import type { EstimateCarbonFootprintOutput, FoodItem, FoodSwap, ChatHistoryMessage, GenerateTipInput, IdentifiedItem as AIIdentifiedFoodItem } from '@/ai/schemas'; 
+import type { EstimateCarbonFootprintOutput, FoodItem, FoodSwap, ChatHistoryMessage, GenerateTipInput, IdentifiedItem as AIIdentifiedFoodItem, MealImpactLevel } from '@/ai/schemas'; 
 import { generateWeeklyTip } from '@/ai/flows/generate-weekly-tip';
 import { generateGeneralRecommendation } from '@/ai/flows/generate-general-recommendation';
 import { generateFoodSwaps } from '@/ai/flows/generate-food-swaps';
@@ -25,10 +25,14 @@ export interface MealLog {
   mealType?: 'Breakfast' | 'Lunch' | 'Dinner';
 }
 
-// This structure will be stored in mealResult in context
+// This structure will be stored in mealResult in context for the meal-result page
 export interface FinalMealResult {
-  foodItems: FoodItem[]; // User-confirmed food items
+  foodItems: FoodItem[]; // User-confirmed items
   carbonFootprintKgCO2e: number;
+  // mealSuggestion is now part of mealFeedbackMessage content
+  carbonEquivalency?: string; // New: for equivalency line
+  mealFeedbackMessage?: string; // New: AI generated feedback
+  impactLevel?: MealImpactLevel; // New: High, Medium, Low
 }
 
 
@@ -97,17 +101,16 @@ interface AppContextProps {
   detectedMealItems: AIIdentifiedFoodItem[] | null; // For items AI detected from photo
   setDetectedMealItems: (items: AIIdentifiedFoodItem[] | null) => void;
 
-  mealResult: FinalMealResult | null; // Stores { foodItems (user-confirmed), carbonFootprintKgCO2e }
-  mealSuggestion: string | null; 
-  setMealResult: (result: FinalMealResult | null, suggestion?: string | null) => void; 
+  mealResult: FinalMealResult | null; 
+  setMealResult: (result: FinalMealResult | null) => void; // Updated to take full FinalMealResult
   
   mealLogs: MealLog[];
-  addMealLog: (log: Omit<MealLog, 'date' | 'timestamp' | 'userEmail' | 'mealType'>) => Promise<void>;
+  addMealLog: (log: Omit<MealLog, 'date' | 'timestamp' | 'userEmail' | 'mealType'>) => Promise<FinalMealResult | null>; // Returns full result for review page
   isLoading: boolean;
 
   weeklyTip: string | null;
   isLoadingWeeklyTip: boolean;
-  fetchWeeklyTip: () => Promise<void>;
+  fetchWeeklyTip: (forceRefresh?: boolean) => Promise<void>;
 
   generalRecommendation: string | null;
   isLoadingGeneralRecommendation: boolean;
@@ -148,7 +151,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [mealPhoto, setMealPhotoState] = useState<string | null>(null);
   const [detectedMealItems, setDetectedMealItemsState] = useState<AIIdentifiedFoodItem[] | null>(null);
   const [mealResult, setMealResultState] = useState<FinalMealResult | null>(null);
-  const [mealSuggestion, setMealSuggestionState] = useState<string | null>(null); 
+  // mealSuggestion is now part of mealResult.mealFeedbackMessage
+
   const [mealLogs, setMealLogs] = useState<MealLog[]>([]);
   const [isLoading, setIsLoading] = useState(true); 
   
@@ -305,6 +309,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         } else if (diffDays > 1) {
           newStreakCount = 1; 
         } else if (diffDays === 0) {
+          // If logging multiple times on the same day, streak doesn't increase unless it's the first log of a new streak
           newStreakCount = newStreakCount === 0 ? 1 : newStreakCount;
         }
       } else {
@@ -322,21 +327,24 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     if (dailyChallenge && dailyChallenge.date === mealLog.date && !dailyChallenge.isCompleted) {
       let dailyCompleted = false;
-      const todaysLogs = currentUserMealLogs.filter(log => log.date === dailyChallenge.date); 
+      // Get current day's logs for accurate checks, including the one just added
+      const todaysLogsForChallenge = [...currentUserMealLogs, mealLog].filter(log => log.date === dailyChallenge.date);
+
 
       switch (dailyChallenge.type) {
         case 'log_plant_based':
           if (mealLog.totalCarbonFootprint < (dailyChallenge.targetValue || 0.7)) dailyCompleted = true;
           break;
         case 'co2e_under_today':
+          // This needs to be re-evaluated after *all* logs for the day. Handled by useEffect.
           break;
         case 'avoid_red_meat_meal':
-          const redMeatKeywords = ['beef', 'lamb', 'steak', 'pork', 'bacon', 'sausage'];
+          const redMeatKeywords = ['beef', 'lamb', 'steak', 'pork', 'bacon', 'sausage']; // Add more as needed
           const containsRedMeat = mealLog.foodItems.some(item => redMeatKeywords.some(keyword => item.name.toLowerCase().includes(keyword)));
           if (!containsRedMeat) dailyCompleted = true;
           break;
         case 'log_three_meals':
-          const mealTypesLoggedToday = new Set(todaysLogs.map(log => log.mealType));
+          const mealTypesLoggedToday = new Set(todaysLogsForChallenge.map(log => log.mealType));
           if (mealTypesLoggedToday.size >= 3) dailyCompleted = true;
           break;
         case 'log_low_co2e_meal':
@@ -353,19 +361,19 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (weeklyChallenge && mealLog.date >= weeklyChallenge.startDate && mealLog.date <= weeklyChallenge.endDate && !weeklyChallenge.isCompleted) {
       let newCurrentValue = weeklyChallenge.currentValue;
       let weeklyChallengeDirty = false;
-      const logsThisWeek = currentUserMealLogs.filter(log => log.date >= weeklyChallenge.startDate && log.date <= weeklyChallenge.endDate);
+      const logsThisWeekForChallenge = [...currentUserMealLogs, mealLog].filter(log => log.date >= weeklyChallenge.startDate && log.date <= weeklyChallenge.endDate);
 
       switch (weeklyChallenge.type) {
         case 'weekly_co2e_under':
-          newCurrentValue = logsThisWeek.reduce((sum, log) => sum + log.totalCarbonFootprint, 0);
+          newCurrentValue = logsThisWeekForChallenge.reduce((sum, log) => sum + log.totalCarbonFootprint, 0);
           weeklyChallengeDirty = true;
           break;
         case 'plant_based_meals_count':
-           newCurrentValue = logsThisWeek.filter(log => log.totalCarbonFootprint < 0.7).length;
+           newCurrentValue = logsThisWeekForChallenge.filter(log => log.totalCarbonFootprint < 0.7).length;
            weeklyChallengeDirty = true;
           break;
         case 'log_days_count':
-          const distinctLogDays = new Set(logsThisWeek.map(log => log.date));
+          const distinctLogDays = new Set(logsThisWeekForChallenge.map(log => log.date));
           newCurrentValue = distinctLogDays.size;
           weeklyChallengeDirty = true;
           break;
@@ -412,7 +420,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setUser(null);
     setMealPhotoState(null);
     setMealResultState(null);
-    setMealSuggestionState(null); 
+    // setMealSuggestionState(null); // No longer separate state
     setWeeklyTip(null);
     setGeneralRecommendation(null);
     setFoodSwaps([]);
@@ -454,16 +462,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   }, []);
 
-  const setMealResult = useCallback((result: FinalMealResult | null, suggestion: string | null = null) => {
+  const setMealResult = useCallback((result: FinalMealResult | null) => {
     setMealResultState(result);
-    setMealSuggestionState(suggestion); 
     // Clear detected items after meal result is set (they've been processed)
     setDetectedMealItemsState(null);
     localStorage.removeItem(DETECTED_ITEMS_STORAGE_KEY);
   }, []);
 
-  const addMealLog = useCallback(async (newLogData: Omit<MealLog, 'date' | 'timestamp' | 'userEmail' | 'mealType'>) => {
-    if (!user) return;
+  const addMealLog = useCallback(async (newLogData: Omit<MealLog, 'date' | 'timestamp' | 'userEmail' | 'mealType'>): Promise<FinalMealResult | null> => {
+    if (!user) return null;
     const currentDate = new Date();
     const timestamp = currentDate.toISOString();
     const mealType = getMealType(timestamp);
@@ -484,6 +491,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     });
     updateStreakOnMealLog(logToAdd.date);
     updateChallengesOnMealLog(logToAdd);
+    
+    // Construct and return the FinalMealResult structure (without AI feedback yet, that's handled in review-meal)
+    return {
+      foodItems: newLogData.foodItems,
+      carbonFootprintKgCO2e: newLogData.totalCarbonFootprint,
+      // equivalency and feedback will be added by review-meal page after AI calls
+    };
   }, [user, updateStreakOnMealLog, updateChallengesOnMealLog]);
 
   useEffect(() => {
@@ -493,31 +507,45 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const todaysLogs = currentUserMealLogs.filter(log => log.date === dailyChallenge.date);
     const totalCO2eToday = todaysLogs.reduce((sum, log) => sum + log.totalCarbonFootprint, 0);
 
-    if (totalCO2eToday <= (dailyChallenge.targetValue || 2.5)) {
-      // on track
-    } else {
-      // over limit
+    if (totalCO2eToday <= (dailyChallenge.targetValue || 2.5) && todaysLogs.length > 0) { // Ensure at least one log for completion
+      const updatedDailyChallenge = { ...dailyChallenge, isCompleted: true };
+      setDailyChallenge(updatedDailyChallenge);
+      localStorage.setItem(`${DAILY_CHALLENGE_STORAGE_KEY_PREFIX}${user.email}`, JSON.stringify(updatedDailyChallenge));
     }
   }, [currentUserMealLogs, dailyChallenge, user]);
 
+
    useEffect(() => {
-    if (!user || !weeklyChallenge || weeklyChallenge.type !== 'weekly_co2e_under' || weeklyChallenge.isCompleted) {
+    if (!user || !weeklyChallenge || weeklyChallenge.isCompleted) { // Don't re-evaluate if already completed
       return;
     }
     const logsThisWeek = currentUserMealLogs.filter(log => log.date >= weeklyChallenge.startDate && log.date <= weeklyChallenge.endDate);
-    const totalCO2eThisWeek = logsThisWeek.reduce((sum, log) => sum + log.totalCarbonFootprint, 0);
-    
-    if (totalCO2eThisWeek !== weeklyChallenge.currentValue) {
-        const isNowCompleted = weeklyChallenge.type === 'weekly_co2e_under' 
-            ? totalCO2eThisWeek <= weeklyChallenge.targetValue 
-            : totalCO2eThisWeek >= weeklyChallenge.targetValue;
+    let newCurrentValue = weeklyChallenge.currentValue;
+    let isNowCompleted = weeklyChallenge.isCompleted;
 
+    switch (weeklyChallenge.type) {
+        case 'weekly_co2e_under':
+            newCurrentValue = logsThisWeek.reduce((sum, log) => sum + log.totalCarbonFootprint, 0);
+            isNowCompleted = newCurrentValue <= weeklyChallenge.targetValue && logsThisWeek.length > 0; // Ensure some activity for completion
+            break;
+        case 'plant_based_meals_count':
+            newCurrentValue = logsThisWeek.filter(log => log.totalCarbonFootprint < 0.7).length;
+            isNowCompleted = newCurrentValue >= weeklyChallenge.targetValue;
+            break;
+        case 'log_days_count':
+            const distinctLogDays = new Set(logsThisWeek.map(log => log.date));
+            newCurrentValue = distinctLogDays.size;
+            isNowCompleted = newCurrentValue >= weeklyChallenge.targetValue;
+            break;
+    }
+    
+    // Only update if currentValue or completion status actually changed
+    if (newCurrentValue !== weeklyChallenge.currentValue || isNowCompleted !== weeklyChallenge.isCompleted) {
         const updatedWkChallenge = {
             ...weeklyChallenge,
-            currentValue: totalCO2eThisWeek,
+            currentValue: newCurrentValue,
             isCompleted: isNowCompleted,
         };
-        
         setWeeklyChallenge(updatedWkChallenge);
         localStorage.setItem(`${WEEKLY_CHALLENGE_STORAGE_KEY_PREFIX}${user.email}`, JSON.stringify(updatedWkChallenge));
     }
@@ -530,10 +558,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     
     const recentLogs = logsToSummarize.filter(log => {
         try {
-            const logDateObj = parseISO(log.date);
+            const logDateObj = parseISO(log.date); // Ensure log.date is valid ISO
             return logDateObj >= sevenDaysAgo && logDateObj <= today;
         } catch (e) {
-            console.warn("Skipping log with invalid date for summary:", log);
+            // console.warn("Skipping log with invalid date for summary:", log.date, log);
             return false;
         }
     });
@@ -542,7 +570,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     const logsByDay: { [key: string]: MealLog[] } = {};
     recentLogs.forEach(log => {
-        const dayKey = log.date;
+        const dayKey = log.date; // This should be 'YYYY-MM-DD'
         if (!logsByDay[dayKey]) {
             logsByDay[dayKey] = [];
         }
@@ -550,7 +578,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     });
 
     return Object.entries(logsByDay)
-      .sort(([dateA], [dateB]) => parseISO(dateA).getTime() - parseISO(dateB).getTime())
+      .sort(([dateA], [dateB]) => parseISO(dateA).getTime() - parseISO(dateB).getTime()) // Sort by date
       .map(([date, logsForDay], index) => {
         const dayOfWeek = format(parseISO(date), 'EEEE (MMM d)');
         const mealsString = logsForDay.map(log =>
@@ -560,32 +588,31 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       }).join('\n') || "No meal activity to summarize.";
   }, []);
 
-  const fetchWeeklyTip = useCallback(async () => {
-    if (!user || currentUserMealLogs.length === 0) {
-      setWeeklyTip(currentUserMealLogs.length === 0 && user ? "Log some meals to get your first weekly tip!" : null);
+  const fetchWeeklyTip = useCallback(async (forceRefresh = false) => {
+    if (!user) { // Removed currentUserMealLogs.length === 0 check, AI can handle no logs
+      setWeeklyTip(null); // No tip if no user
       return;
     }
     setIsLoadingWeeklyTip(true);
     const cacheKey = `${WEEKLY_TIP_STORAGE_KEY_PREFIX}${user.email}`;
-    const cachedDataString = localStorage.getItem(cacheKey);
     
-    if (cachedDataString) {
-      try {
-        const cachedData: CachedWeeklyTip = JSON.parse(cachedDataString);
-        if (differenceInCalendarDays(new Date(), new Date(cachedData.timestamp)) === 0 && cachedData.tip) {
-          setWeeklyTip(cachedData.tip);
-          setIsLoadingWeeklyTip(false);
-          return;
+    if (!forceRefresh) {
+        const cachedDataString = localStorage.getItem(cacheKey);
+        if (cachedDataString) {
+            try {
+                const cachedData: CachedWeeklyTip = JSON.parse(cachedDataString);
+                // Check if tip is from the current day (or less than 24 hours old for simplicity)
+                if (Date.now() - cachedData.timestamp < 24 * 60 * 60 * 1000 && cachedData.tip) {
+                    setWeeklyTip(cachedData.tip);
+                    setIsLoadingWeeklyTip(false);
+                    return;
+                }
+            } catch (e) { console.error("Error parsing cached weekly tip:", e); localStorage.removeItem(cacheKey); }
         }
-      } catch (e) { console.error("Error parsing cached weekly tip:", e); localStorage.removeItem(cacheKey); }
     }
     
     const mealLogsSummary = getMealLogsSummaryForAI(currentUserMealLogs);
-    if (mealLogsSummary === "No meals logged in the last 7 days.") {
-        setWeeklyTip("Log more meals this week to get personalized tips!");
-        setIsLoadingWeeklyTip(false);
-        return;
-    }
+    // AI can handle "No meals logged" and give generic advice or an encouragement to log
     try {
       const input: GenerateTipInput = { mealLogsSummary };
       const result = await generateWeeklyTip(input);
@@ -593,7 +620,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       localStorage.setItem(cacheKey, JSON.stringify({ tip: result.tip, timestamp: Date.now() }));
     } catch (error) {
       console.error("Error fetching weekly tip:", error);
-      setWeeklyTip("Could not fetch a weekly tip at this time.");
+      setWeeklyTip("Could not fetch a weekly tip at this time. Try again later.");
     } finally {
       setIsLoadingWeeklyTip(false);
     }
@@ -609,7 +636,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         if (cachedDataString) {
             try {
                 const cachedData: CachedWeeklyTip = JSON.parse(cachedDataString);
-                if (differenceInCalendarDays(new Date(), new Date(cachedData.timestamp)) === 0 && cachedData.tip) {
+                 if (Date.now() - cachedData.timestamp < 24 * 60 * 60 * 1000 && cachedData.tip) {
                     setGeneralRecommendation(cachedData.tip);
                     setIsLoadingGeneralRecommendation(false);
                     return;
@@ -619,18 +646,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
     
     const mealLogsSummary = getMealLogsSummaryForAI(currentUserMealLogs);
-     if (mealLogsSummary.startsWith("No meals logged")) {
-        setGeneralRecommendation("Log some meals to receive personalized recommendations!");
-        setIsLoadingGeneralRecommendation(false);
-        return;
-    }
     try {
       const result = await generateGeneralRecommendation({ mealLogsSummary });
       setGeneralRecommendation(result.tip);
       localStorage.setItem(cacheKey, JSON.stringify({ tip: result.tip, timestamp: Date.now() }));
     } catch (error) {
       console.error("Error fetching general recommendation:", error);
-      setGeneralRecommendation("Could not fetch a recommendation at this time.");
+      setGeneralRecommendation("Could not fetch a recommendation. Please ensure you have logged some meals.");
     } finally {
       setIsLoadingGeneralRecommendation(false);
     }
@@ -646,7 +668,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         if (cachedDataString) {
             try {
                 const cachedData: { swaps: FoodSwap[], timestamp: number } = JSON.parse(cachedDataString);
-                if (differenceInCalendarDays(new Date(), new Date(cachedData.timestamp)) === 0 && cachedData.swaps.length > 0) {
+                 if (Date.now() - cachedData.timestamp < 24 * 60 * 60 * 1000 && cachedData.swaps.length > 0) {
                     setFoodSwaps(cachedData.swaps.map(s => ({...s, tryThis: (s as any).tryThis || false })));
                     setIsLoadingFoodSwaps(false);
                     return;
@@ -656,11 +678,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
 
     const mealLogsSummary = getMealLogsSummaryForAI(currentUserMealLogs);
-    if (mealLogsSummary.startsWith("No meals logged")) {
-        setFoodSwaps([{ originalItem: "Log Meals", suggestedItem: "Get Swaps", co2eSavingEstimate: "Personalized for you!", details: "Start logging to see suggestions." }]);
-        setIsLoadingFoodSwaps(false);
-        return;
-    }
     try {
       const result = await generateFoodSwaps({ mealLogsSummary });
       const swapsWithTryThis = result.swaps.map(swap => ({ ...swap, tryThis: false }));
@@ -668,7 +685,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       localStorage.setItem(cacheKey, JSON.stringify({ swaps: swapsWithTryThis, timestamp: Date.now() }));
     } catch (error) {
       console.error("Error fetching food swaps:", error);
-      setFoodSwaps([{ originalItem: "Error", suggestedItem: "Try refreshing", co2eSavingEstimate: "N/A", details: "Could not fetch food swaps." }]);
+      setFoodSwaps([{ originalItem: "Error", suggestedItem: "Try refreshing", co2eSavingEstimate: "N/A", details: "Could not fetch food swaps. Log more meals for suggestions." }]);
     } finally {
       setIsLoadingFoodSwaps(false);
     }
@@ -738,7 +755,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       detectedMealItems,
       setDetectedMealItems,
       mealResult,
-      mealSuggestion, 
       setMealResult,
       mealLogs: currentUserMealLogs, 
       addMealLog,
@@ -774,3 +790,6 @@ export const useAppContext = (): AppContextProps => {
   }
   return context;
 };
+
+// Exporting FoodItem for use in other components if not already globally available via schemas
+export type { FoodItem, AIIdentifiedFoodItem };

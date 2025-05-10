@@ -12,12 +12,14 @@ import { Loader2, CheckCircle, AlertTriangle, PlusCircle, Trash2, Utensils } fro
 import Header from '@/components/header';
 import { useAppContext } from '@/context/app-context';
 import { estimateMealCarbonFootprint } from '@/ai/flows/estimate-carbon-footprint'; 
-import { generateMealSuggestion } from '@/ai/flows/generate-meal-suggestion'; 
+// import { generateMealSuggestion } from '@/ai/flows/generate-meal-suggestion'; // Replaced by generateMealFeedback
+import { generateCarbonEquivalency } from '@/ai/flows/generate-carbon-equivalency';
+import { generateMealFeedback } from '@/ai/flows/generate-meal-feedback';
 import type { FoodItem, AIIdentifiedFoodItem, FinalMealResult } from '@/context/app-context';
 import { useToast } from "@/hooks/use-toast";
 import { ScrollArea } from '@/components/ui/scroll-area';
 
-const SUGGESTION_THRESHOLD_KG_CO2E = 2.0;
+// const SUGGESTION_THRESHOLD_KG_CO2E = 2.0; // This logic is now handled by generateMealFeedback
 
 interface EditableFoodItem extends FoodItem {
   id: string; // For React key and local manipulation
@@ -27,18 +29,18 @@ const ReviewMealPage: NextPage = () => {
   const router = useRouter();
   const { 
     mealPhoto, 
-    detectedMealItems, // Get AI detected items from context
+    detectedMealItems, 
     setMealResult, 
     addMealLog, 
     user, 
     isLoading: isAppContextLoading,
-    setDetectedMealItems, // To clear after use
+    setDetectedMealItems, 
     setMealPhoto 
   } = useAppContext();
   
   const [editableItems, setEditableItems] = useState<EditableFoodItem[]>([]);
-  const [isEstimating, setIsEstimating] = useState(false);
-  const [estimatingStep, setEstimatingStep] = useState(''); 
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [processingStep, setProcessingStep] = useState(''); 
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
@@ -53,17 +55,14 @@ const ReviewMealPage: NextPage = () => {
       });
       router.push('/log-meal');
     } else if (detectedMealItems) {
-      // Initialize editableItems from detectedMealItems
       setEditableItems(
         detectedMealItems.map((item, index) => ({
           id: `item-${Date.now()}-${index}`,
-          name: item.name === "Unable to identify items" ? "" : item.name, // Clear placeholder if AI failed
+          name: item.name === "Unable to identify items" ? "" : item.name, 
           quantity: item.estimatedQuantity === "N/A" ? "" : item.estimatedQuantity,
         }))
       );
     } else {
-        // If detectedMealItems is null (e.g. direct navigation or error in previous step)
-        // Initialize with one empty item for manual entry
         setEditableItems([{ id: `item-${Date.now()}-0`, name: '', quantity: '' }]);
     }
   }, [user, mealPhoto, detectedMealItems, isAppContextLoading, router, toast]);
@@ -99,57 +98,58 @@ const ReviewMealPage: NextPage = () => {
       return;
     }
 
-    setIsEstimating(true);
+    setIsProcessing(true);
     setError(null);
-    setEstimatingStep('Estimating footprint...'); 
-
+    
     const foodItemsForAI: FoodItem[] = validItems.map(({ id, ...rest }) => rest);
-    let suggestion: string | null = null;
+    let finalResultForContext: FinalMealResult | null = null;
 
     try {
+      setProcessingStep('Estimating footprint...'); 
       const footprintResult = await estimateMealCarbonFootprint({
-        photoDataUri: mealPhoto, // Photo is still useful for context if AI uses it
+        photoDataUri: mealPhoto,
         foodItems: foodItemsForAI,
       });
 
-      const finalResultForContext: FinalMealResult = {
-        foodItems: foodItemsForAI, // User-confirmed items
-        carbonFootprintKgCO2e: footprintResult.carbonFootprintKgCO2e,
-      };
-      
-      if(user?.email) {
-         await addMealLog({ // Log the user-confirmed items
+      if (!user?.email) {
+          throw new Error("User session not found. Please log in again.");
+      }
+
+      // Add meal log to context (and localStorage)
+      // This addMealLog now returns the basic FinalMealResult without AI extras yet
+      const loggedMealBasicResult = await addMealLog({ 
            photoDataUri: mealPhoto,
            foodItems: foodItemsForAI,
            totalCarbonFootprint: footprintResult.carbonFootprintKgCO2e,
-         });
+      });
+
+      if (!loggedMealBasicResult) {
+        throw new Error("Failed to log meal before fetching additional AI details.");
       }
 
-      if (footprintResult.carbonFootprintKgCO2e > SUGGESTION_THRESHOLD_KG_CO2E) {
-        setEstimatingStep('Generating suggestion...'); 
-        try {
-          const suggestionResult = await generateMealSuggestion({
-            foodItems: foodItemsForAI,
-            carbonFootprintKgCO2e: footprintResult.carbonFootprintKgCO2e,
-          });
-          suggestion = suggestionResult.suggestion;
-        } catch (suggestionError) {
-           console.error('Error generating suggestion:', suggestionError);
-           toast({
-             title: "Suggestion Failed",
-             description: "Could not generate a meal suggestion, but footprint was calculated.",
-             variant: "default", 
-           });
-        }
-      }
+      finalResultForContext = { ...loggedMealBasicResult }; // Start with basic result
 
-      setMealResult(finalResultForContext, suggestion);
-      setDetectedMealItems(null); // Clear detected items from context after processing
+      setProcessingStep('Generating equivalency...');
+      const equivalencyResult = await generateCarbonEquivalency({
+        carbonFootprintKgCO2e: footprintResult.carbonFootprintKgCO2e,
+      });
+      finalResultForContext.carbonEquivalency = equivalencyResult.equivalency;
+
+      setProcessingStep('Generating feedback...');
+      const feedbackResult = await generateMealFeedback({
+        foodItems: foodItemsForAI,
+        carbonFootprintKgCO2e: footprintResult.carbonFootprintKgCO2e,
+      });
+      finalResultForContext.mealFeedbackMessage = feedbackResult.feedbackMessage;
+      finalResultForContext.impactLevel = feedbackResult.impactLevel;
+      
+      setMealResult(finalResultForContext); // Update context with all info
+      setDetectedMealItems(null); 
 
       toast({
-        title: "Estimation Complete!",
-        description: `CO₂e: ${footprintResult.carbonFootprintKgCO2e.toFixed(2)} kg. ${suggestion ? 'Suggestion available!' : ''}`,
-        action: ( <Button variant="outline" size="sm" onClick={() => router.push('/meal-result')}>View</Button> ),
+        title: "Meal Processed!",
+        description: `CO₂e: ${footprintResult.carbonFootprintKgCO2e.toFixed(2)} kg. View details now.`,
+        // Action removed as navigation is immediate
       });
       router.push('/meal-result');
 
@@ -157,15 +157,19 @@ const ReviewMealPage: NextPage = () => {
       console.error('Error processing meal:', err);
       const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred.';
       setError(`Failed to process meal: ${errorMessage}`);
-      toast({ title: "Processing Failed", description: "Could not calculate footprint. Please try again.", variant: "destructive" });
+      toast({ title: "Processing Failed", description: `Could not process your meal. ${errorMessage}`, variant: "destructive" });
+      if (finalResultForContext && finalResultForContext.carbonFootprintKgCO2e) {
+        // If footprint was calculated but other AI calls failed, still show basic result
+        setMealResult(finalResultForContext);
+        router.push('/meal-result');
+      }
     } finally {
-      setIsEstimating(false);
-      setEstimatingStep(''); 
+      setIsProcessing(false);
+      setProcessingStep(''); 
     }
   };
   
   const handleGoBack = () => {
-    // Clear context related to current meal logging attempt
     setMealPhoto(null);
     setDetectedMealItems(null);
     router.push('/log-meal');
@@ -176,7 +180,7 @@ const ReviewMealPage: NextPage = () => {
     return <div className="flex justify-center items-center min-h-screen bg-background"><Loader2 className="h-8 w-8 animate-spin text-primary"/></div>;
   }
 
-  if (!mealPhoto && !isAppContextLoading) { // Added !isAppContextLoading to prevent premature redirect
+  if (!mealPhoto && !isAppContextLoading) { 
      return (
         <div className="flex flex-col min-h-screen bg-background">
             <Header title="Review Meal" showBackButton={false}/>
@@ -197,7 +201,7 @@ const ReviewMealPage: NextPage = () => {
           <CardHeader>
             <CardTitle className="text-2xl text-center text-primary">Confirm Your Meal Items</CardTitle>
             <CardDescription className="text-center">
-              AI has detected items from your photo. Review, edit, add, or remove items as needed.
+              AI may have detected items from your photo. Review, edit, add, or remove items as needed.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -222,7 +226,7 @@ const ReviewMealPage: NextPage = () => {
                       value={item.name}
                       onChange={(e) => handleItemChange(item.id, 'name', e.target.value)}
                       className="text-sm h-9"
-                      disabled={isEstimating}
+                      disabled={isProcessing}
                     />
                   </div>
                   <div className="flex-grow space-y-1">
@@ -233,14 +237,14 @@ const ReviewMealPage: NextPage = () => {
                       value={item.quantity}
                       onChange={(e) => handleItemChange(item.id, 'quantity', e.target.value)}
                       className="text-sm h-9"
-                      disabled={isEstimating}
+                      disabled={isProcessing}
                     />
                   </div>
                   <Button
                     variant="ghost"
                     size="icon"
                     onClick={() => handleRemoveItem(item.id)}
-                    disabled={isEstimating || editableItems.length <= 1 && !item.name && !item.quantity} // Don't allow removing the last empty item easily
+                    disabled={isProcessing || editableItems.length <= 1 && !item.name && !item.quantity} 
                     className="text-destructive hover:bg-destructive/10 h-9 w-9"
                     aria-label="Remove item"
                   >
@@ -249,7 +253,7 @@ const ReviewMealPage: NextPage = () => {
                 </div>
               ))}
             </ScrollArea>
-            <Button variant="outline" onClick={handleAddItem} disabled={isEstimating} className="w-full border-primary text-primary hover:bg-primary/10">
+            <Button variant="outline" onClick={handleAddItem} disabled={isProcessing} className="w-full border-primary text-primary hover:bg-primary/10">
               <PlusCircle className="mr-2 h-4 w-4" /> Add Item
             </Button>
 
@@ -260,10 +264,10 @@ const ReviewMealPage: NextPage = () => {
               </div>
             )}
 
-            {isEstimating && (
+            {isProcessing && (
               <div className="flex items-center justify-center text-sm text-primary p-2 bg-primary-light/30 rounded-md">
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {estimatingStep || 'Processing...'}
+                {processingStep || 'Processing...'}
               </div>
             )}
           </CardContent>
@@ -271,15 +275,15 @@ const ReviewMealPage: NextPage = () => {
             <Button
               onClick={handleConfirmMeal}
               className="w-full h-12 text-lg bg-accent hover:bg-accent/90 text-accent-foreground"
-              disabled={isEstimating || editableItems.every(item => !item.name.trim() || !item.quantity.trim())}
+              disabled={isProcessing || editableItems.every(item => !item.name.trim() || !item.quantity.trim())}
               aria-label="Confirm meal and estimate carbon footprint"
             >
-              {isEstimating ? (
+              {isProcessing ? (
                 <Loader2 className="mr-2 h-5 w-5 animate-spin" />
               ) : (
                 <CheckCircle className="mr-2 h-5 w-5" />
               )}
-              {isEstimating ? estimatingStep || 'Estimating...' : 'Confirm & Estimate CO₂e'}
+              {isProcessing ? processingStep || 'Estimating...' : 'Confirm & View Impact'}
             </Button>
           </CardFooter>
         </Card>
@@ -289,3 +293,4 @@ const ReviewMealPage: NextPage = () => {
 };
 
 export default ReviewMealPage;
+```
