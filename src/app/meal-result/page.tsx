@@ -7,7 +7,7 @@ import { useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Leaf, Utensils, Home, Sparkles, Info, AlertTriangle, Loader2, Zap, MessageCircle } from 'lucide-react'; // Added Zap, MessageCircle
+import { Leaf, Utensils, Home, Sparkles, Info, AlertTriangle, Loader2, Zap, MessageCircle, CheckCircle } from 'lucide-react'; // Added CheckCircle
 import Header from '@/components/header';
 import { useAppContext } from '@/context/app-context';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -207,4 +207,3 @@ const MealResultPage: NextPage = () => {
 };
 
 export default MealResultPage;
-```
