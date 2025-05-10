@@ -67,4 +67,3 @@ const generateCarbonEquivalencyFlow = ai.defineFlow(
 );
 
 export type { GenerateCarbonEquivalencyInput, GenerateCarbonEquivalencyOutput };
-```
