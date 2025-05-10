@@ -1,3 +1,4 @@
+
 'use server';
 /**
  * @fileOverview AI Chatbot for answering questions about low-carbon eating, using user's meal history.
@@ -14,12 +15,12 @@ import {
   AskAIChatbotOutputSchema,
   type AskAIChatbotOutput,
 } from '@/ai/schemas';
-import type { MessageData } from 'genkit';
+// import type { MessageData } from 'genkit'; // No longer needed for direct history passing
 
 
 const chatbotPrompt = ai.definePrompt({
   name: 'askAIChatbotPrompt',
-  input: {schema: AskAIChatbotInputSchema},
+  input: {schema: AskAIChatbotInputSchema}, // Will use the updated schema with formattedChatHistory
   output: {schema: AskAIChatbotOutputSchema},
   prompt: `You are a helpful AI assistant for the EcoPlate app, specializing in low-carbon eating.
 The user's meal logs for the past 7 days are:
@@ -28,29 +29,16 @@ The user's meal logs for the past 7 days are:
 Use this meal data as context to answer the user's questions. Keep your answers concise, friendly, and focused on sustainable food choices.
 If the question is unrelated to food, diet, or sustainability, politely state that you can only answer questions on those topics.
 
-{{#if chatHistory}}
+{{#if formattedChatHistory}}
 Previous conversation:
-{{#each chatHistory}}
-{{#ifCond this.role "===" "user"}}User: {{this.parts.0.text}}{{/ifCond}}
-{{#ifCond this.role "===" "model"}}AI: {{this.parts.0.text}}{{/ifCond}}
-{{/each}}
+{{{formattedChatHistory}}}
 {{/if}}
 
 Current user question: {{{userQuestion}}}
 
 Provide your answer.
 `,
-  // Helper for conditional rendering in Handlebars based on role
-  templateHelpers: {
-    ifCond: function (v1: string, operator: string, v2: string, options: any) {
-      switch (operator) {
-        case '===':
-          return v1 === v2 ? options.fn(this) : options.inverse(this);
-        default:
-          return options.inverse(this);
-      }
-    },
-  },
+  // templateHelpers removed as ifCond is no longer used
 });
 
 
@@ -70,17 +58,25 @@ const askAIChatbotFlow = ai.defineFlow(
   },
   async (input) => {
     console.log("Calling askAIChatbotFlow with question:", input.userQuestion);
-    // Prepare history for Genkit if present
-    const history: MessageData[] | undefined = input.chatHistory?.map(h => ({
-        role: h.role,
-        parts: h.parts.map(p => ({text: p.text})),
-    }));
+
+    let formattedHistoryString = "";
+    if (input.chatHistory && input.chatHistory.length > 0) {
+      formattedHistoryString = input.chatHistory.map(h => {
+        const prefix = h.role === 'user' ? 'User:' : 'AI:';
+        // Ensure all parts' text are joined if multiple parts exist, though typically it's one.
+        const text = h.parts.map(p => p.text).join(' '); 
+        return `${prefix} ${text}`;
+      }).join('\n');
+    }
+
+    // Prepare the input for the prompt, including the pre-formatted history
+    const promptInput: AskAIChatbotInput = {
+      ...input,
+      formattedChatHistory: formattedHistoryString,
+    };
 
     try {
-      // The prompt function itself can handle history if it's part of the input schema and template
-      // Alternatively, one could pass history to `ai.generate` directly if not using a pre-defined prompt object that handles it.
-      const result = await chatbotPrompt(input, {history}); // Pass history if prompt structure supports it
-                                                       // Or, construct prompt with history for ai.generate()
+      const result = await chatbotPrompt(promptInput); 
       
       if (!result.output || !result.output.answer) {
         throw new Error('AI did not return the expected answer format.');

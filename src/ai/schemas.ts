@@ -172,6 +172,7 @@ export const AskAIChatbotInputSchema = z.object({
   userQuestion: z.string().describe("The user's question about low-carbon eating."),
   mealLogsSummary: z.string().describe("A summary of the user's meal logs from the last 7 days for context."),
   chatHistory: z.array(ChatHistoryMessageSchema).optional().describe("Previous messages in the conversation for context to maintain conversation flow."),
+  formattedChatHistory: z.string().optional().describe("A pre-formatted string of the chat history."),
 });
 
 /**
