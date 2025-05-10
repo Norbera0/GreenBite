@@ -1,7 +1,7 @@
 
 "use client";
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -27,6 +27,14 @@ const Header: React.FC<HeaderProps> = ({
   const { user, logout } = useAppContext();
   const router = useRouter();
   const pathname = usePathname();
+  const [canGoBack, setCanGoBack] = useState(false);
+
+  useEffect(() => {
+    // This effect runs only on the client after hydration
+    if (typeof window !== 'undefined') {
+      setCanGoBack(window.history.length > 1 && pathname !== '/');
+    }
+  }, [pathname]);
 
   const handleLogout = async () => {
     await logout();
@@ -37,7 +45,7 @@ const Header: React.FC<HeaderProps> = ({
     router.back();
   };
 
-  const shouldShowBackButton = manualShowBackButton ?? (pathname !== '/' && typeof window !== 'undefined' && window.history.length > 1);
+  const shouldShowBackButton = manualShowBackButton ?? canGoBack;
   const isHomeTitle = title === "Home";
 
   return (
@@ -86,3 +94,4 @@ const Header: React.FC<HeaderProps> = ({
 };
 
 export default Header;
+
