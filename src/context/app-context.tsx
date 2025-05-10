@@ -2,8 +2,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useMemo } from 'react';
-import type { EstimateCarbonFootprintFromMealPhotoOutput } from '@/ai/flows/estimate-carbon-footprint';
-import type { FoodItem, FoodSwap, ChatHistoryMessage, GenerateTipInput } from '@/ai/schemas'; 
+import type { EstimateCarbonFootprintOutput, FoodItem, FoodSwap, ChatHistoryMessage, GenerateTipInput, IdentifiedItem as AIIdentifiedFoodItem } from '@/ai/schemas'; 
 import { generateWeeklyTip } from '@/ai/flows/generate-weekly-tip';
 import { generateGeneralRecommendation } from '@/ai/flows/generate-general-recommendation';
 import { generateFoodSwaps } from '@/ai/flows/generate-food-swaps';
@@ -21,10 +20,17 @@ export interface MealLog {
   date: string; // YYYY-MM-DD (local date of the meal)
   timestamp: string; // ISO string for precise time (UTC)
   photoDataUri: string;
-  foodItems: FoodItem[];
+  foodItems: FoodItem[]; // User-confirmed food items
   totalCarbonFootprint: number;
-  mealType?: 'Breakfast' | 'Lunch' | 'Dinner'; // Added for challenge processing
+  mealType?: 'Breakfast' | 'Lunch' | 'Dinner';
 }
+
+// This structure will be stored in mealResult in context
+export interface FinalMealResult {
+  foodItems: FoodItem[]; // User-confirmed food items
+  carbonFootprintKgCO2e: number;
+}
+
 
 interface CachedWeeklyTip {
   tip: string;
@@ -64,7 +70,6 @@ export interface WeeklyChallenge {
 export interface StreakData {
   logStreak: number; 
   lastLogDate: string | null; 
-  // Future: challengeStreak, lastChallengeCompletionDate
 }
 
 const PREDEFINED_DAILY_CHALLENGES: Omit<DailyChallenge, 'date' | 'isCompleted' | 'id'>[] = [
@@ -88,9 +93,14 @@ interface AppContextProps {
   logout: () => Promise<void>;
   mealPhoto: string | null;
   setMealPhoto: (photoDataUri: string | null) => void;
-  mealResult: EstimateCarbonFootprintFromMealPhotoOutput | null;
+  
+  detectedMealItems: AIIdentifiedFoodItem[] | null; // For items AI detected from photo
+  setDetectedMealItems: (items: AIIdentifiedFoodItem[] | null) => void;
+
+  mealResult: FinalMealResult | null; // Stores { foodItems (user-confirmed), carbonFootprintKgCO2e }
   mealSuggestion: string | null; 
-  setMealResult: (result: EstimateCarbonFootprintFromMealPhotoOutput | null, suggestion?: string | null) => void; 
+  setMealResult: (result: FinalMealResult | null, suggestion?: string | null) => void; 
+  
   mealLogs: MealLog[];
   addMealLog: (log: Omit<MealLog, 'date' | 'timestamp' | 'userEmail' | 'mealType'>) => Promise<void>;
   isLoading: boolean;
@@ -113,31 +123,31 @@ interface AppContextProps {
   sendChatMessage: (question: string) => Promise<void>;
   clearChatMessages: () => void;
 
-  // Challenges & Streaks
   dailyChallenge: DailyChallenge | null;
   weeklyChallenge: WeeklyChallenge | null;
   streakData: StreakData | null;
   refreshDailyChallenge: () => void;
-  // refreshWeeklyChallenge: () => void; // For manual refresh if needed later
 }
 
 const AppContext = createContext<AppContextProps | undefined>(undefined);
 
-const USER_STORAGE_KEY = 'ecoPlateUser';
-const MEAL_LOGS_STORAGE_KEY = 'ecoPlateMealLogs';
-const WEEKLY_TIP_STORAGE_KEY_PREFIX = 'ecoPlateWeeklyTip_';
-const GENERAL_REC_STORAGE_KEY_PREFIX = 'ecoPlateGeneralRec_';
-const FOOD_SWAPS_STORAGE_KEY_PREFIX = 'ecoPlateFoodSwaps_';
-const CHAT_MESSAGES_STORAGE_KEY_PREFIX = 'ecoPlateChatMessages_';
-const DAILY_CHALLENGE_STORAGE_KEY_PREFIX = 'ecoPlateDailyChallenge_';
-const WEEKLY_CHALLENGE_STORAGE_KEY_PREFIX = 'ecoPlateWeeklyChallenge_';
-const STREAK_DATA_STORAGE_KEY_PREFIX = 'ecoPlateStreakData_';
+const USER_STORAGE_KEY = 'greenBiteUser'; // Updated brand name
+const MEAL_LOGS_STORAGE_KEY = 'greenBiteMealLogs'; // Updated brand name
+const DETECTED_ITEMS_STORAGE_KEY = 'greenBiteDetectedMealItems'; // For new flow
+const WEEKLY_TIP_STORAGE_KEY_PREFIX = 'greenBiteWeeklyTip_';
+const GENERAL_REC_STORAGE_KEY_PREFIX = 'greenBiteGeneralRec_';
+const FOOD_SWAPS_STORAGE_KEY_PREFIX = 'greenBiteFoodSwaps_';
+const CHAT_MESSAGES_STORAGE_KEY_PREFIX = 'greenBiteChatMessages_';
+const DAILY_CHALLENGE_STORAGE_KEY_PREFIX = 'greenBiteDailyChallenge_';
+const WEEKLY_CHALLENGE_STORAGE_KEY_PREFIX = 'greenBiteWeeklyChallenge_';
+const STREAK_DATA_STORAGE_KEY_PREFIX = 'greenBiteStreakData_';
 
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [mealPhoto, setMealPhotoState] = useState<string | null>(null);
-  const [mealResult, setMealResultState] = useState<EstimateCarbonFootprintFromMealPhotoOutput | null>(null);
+  const [detectedMealItems, setDetectedMealItemsState] = useState<AIIdentifiedFoodItem[] | null>(null);
+  const [mealResult, setMealResultState] = useState<FinalMealResult | null>(null);
   const [mealSuggestion, setMealSuggestionState] = useState<string | null>(null); 
   const [mealLogs, setMealLogs] = useState<MealLog[]>([]);
   const [isLoading, setIsLoading] = useState(true); 
@@ -152,7 +162,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [isLoadingChatResponse, setIsLoadingChatResponse] = useState(false);
 
-  // Challenges & Streaks State
   const [dailyChallenge, setDailyChallenge] = useState<DailyChallenge | null>(null);
   const [weeklyChallenge, setWeeklyChallenge] = useState<WeeklyChallenge | null>(null);
   const [streakData, setStreakData] = useState<StreakData | null>({ logStreak: 0, lastLogDate: null });
@@ -162,8 +171,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     return mealLogs.filter(log => log.userEmail === user.email);
   }, [user, mealLogs]);
 
-
-  // Helper to determine meal type based on timestamp
   const getMealType = (timestamp: string): 'Breakfast' | 'Lunch' | 'Dinner' => {
     const hour = getHours(parseISO(timestamp));
     if (hour >= 4 && hour < 10) return 'Breakfast';
@@ -171,8 +178,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     return 'Dinner';
   };
 
-
-  // Load data from localStorage
   useEffect(() => {
     setIsLoading(true);
     try {
@@ -181,7 +186,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         const parsedUser: User = JSON.parse(storedUser);
         setUser(parsedUser);
         
-        // Load user-specific data
         const storedChat = localStorage.getItem(`${CHAT_MESSAGES_STORAGE_KEY_PREFIX}${parsedUser.email}`);
         if (storedChat) setChatMessages(JSON.parse(storedChat));
 
@@ -194,6 +198,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         const storedStreak = localStorage.getItem(`${STREAK_DATA_STORAGE_KEY_PREFIX}${parsedUser.email}`);
         if (storedStreak) setStreakData(JSON.parse(storedStreak));
         else setStreakData({ logStreak: 0, lastLogDate: null });
+
+        // Load detected items if any (might be from an interrupted session)
+        const storedDetectedItems = localStorage.getItem(DETECTED_ITEMS_STORAGE_KEY);
+        if(storedDetectedItems) setDetectedMealItemsState(JSON.parse(storedDetectedItems));
+
       }
 
       const storedLogs = localStorage.getItem(MEAL_LOGS_STORAGE_KEY);
@@ -213,9 +222,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   }, []);
   
-  // ---- CHALLENGE & STREAK LOGIC ----
   const _selectNewDailyChallenge = useCallback((): Omit<DailyChallenge, 'date' | 'isCompleted' | 'id'> => {
-    const availableChallenges = PREDEFINED_DAILY_CHALLENGES.filter(c => c.type !== dailyChallenge?.type); // Avoid immediate repeat
+    const availableChallenges = PREDEFINED_DAILY_CHALLENGES.filter(c => c.type !== dailyChallenge?.type);
     const pool = availableChallenges.length > 0 ? availableChallenges : PREDEFINED_DAILY_CHALLENGES;
     return pool[Math.floor(Math.random() * pool.length)];
   }, [dailyChallenge]);
@@ -235,7 +243,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       localStorage.setItem(`${DAILY_CHALLENGE_STORAGE_KEY_PREFIX}${user.email}`, JSON.stringify(newDailyChallenge));
     }
   }, [user, dailyChallenge, _selectNewDailyChallenge]);
-
 
   const _selectNewWeeklyChallenge = useCallback((): Omit<WeeklyChallenge, 'startDate' | 'endDate' | 'isCompleted' | 'id' | 'currentValue'> => {
      const availableChallenges = PREDEFINED_WEEKLY_CHALLENGES.filter(c => c.type !== weeklyChallenge?.type);
@@ -264,7 +271,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }, [user, weeklyChallenge, _selectNewWeeklyChallenge]);
 
   useEffect(() => {
-    if (user && !isLoading) { // Ensure user is loaded before checking challenges
+    if (user && !isLoading) { 
       checkAndRefreshDailyChallenge();
       checkAndRefreshWeeklyChallenge();
     }
@@ -296,14 +303,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         if (diffDays === 1) {
           newStreakCount += 1;
         } else if (diffDays > 1) {
-          newStreakCount = 1; // Reset if missed a day or more
+          newStreakCount = 1; 
         } else if (diffDays === 0) {
-          // Multiple logs on the same day, streak already counted or initiated
-          // newStreakCount remains same or 1 if it's the first log of a new streak
           newStreakCount = newStreakCount === 0 ? 1 : newStreakCount;
         }
       } else {
-        newStreakCount = 1; // First log ever
+        newStreakCount = 1; 
       }
       
       const newStreak: StreakData = { ...prevStreak, logStreak: newStreakCount, lastLogDate: logDateStr };
@@ -315,28 +320,18 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const updateChallengesOnMealLog = useCallback((mealLog: MealLog) => {
     if (!user) return;
 
-    // Update Daily Challenge
     if (dailyChallenge && dailyChallenge.date === mealLog.date && !dailyChallenge.isCompleted) {
       let dailyCompleted = false;
-      const todaysLogs = currentUserMealLogs.filter(log => log.date === dailyChallenge.date); // Includes the current mealLog via context update cycle
+      const todaysLogs = currentUserMealLogs.filter(log => log.date === dailyChallenge.date); 
 
       switch (dailyChallenge.type) {
         case 'log_plant_based':
           if (mealLog.totalCarbonFootprint < (dailyChallenge.targetValue || 0.7)) dailyCompleted = true;
           break;
         case 'co2e_under_today':
-          const totalCO2eToday = todaysLogs.reduce((sum, log) => sum + log.totalCarbonFootprint, 0);
-          // This challenge can only be confirmed at end of day, or if limit EXCEEDED.
-          // For simplicity, we'll mark as complete if it's the end of the day and still under.
-          // Or, if a log makes it go OVER, then it's failed (not tracked as 'failed' state yet)
-          // This simple check here will mark it true if ANY log keeps it under for now.
-          // A more robust check would be EOD or a separate "check day completion" function.
-          // For now, let's assume it is completed if the current sum is under. This isn't strictly correct.
-          // Let's change logic: this type is evaluated at end of day or if user manually checks.
-          // For now, we won't auto-complete it here.
           break;
         case 'avoid_red_meat_meal':
-          const redMeatKeywords = ['beef', 'lamb', 'steak', 'pork', 'bacon', 'sausage']; // expand as needed
+          const redMeatKeywords = ['beef', 'lamb', 'steak', 'pork', 'bacon', 'sausage'];
           const containsRedMeat = mealLog.foodItems.some(item => redMeatKeywords.some(keyword => item.name.toLowerCase().includes(keyword)));
           if (!containsRedMeat) dailyCompleted = true;
           break;
@@ -355,21 +350,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       }
     }
 
-    // Update Weekly Challenge
     if (weeklyChallenge && mealLog.date >= weeklyChallenge.startDate && mealLog.date <= weeklyChallenge.endDate && !weeklyChallenge.isCompleted) {
       let newCurrentValue = weeklyChallenge.currentValue;
       let weeklyChallengeDirty = false;
-
       const logsThisWeek = currentUserMealLogs.filter(log => log.date >= weeklyChallenge.startDate && log.date <= weeklyChallenge.endDate);
 
       switch (weeklyChallenge.type) {
         case 'weekly_co2e_under':
-          // This value should be the sum of all logs in the week up to now.
           newCurrentValue = logsThisWeek.reduce((sum, log) => sum + log.totalCarbonFootprint, 0);
           weeklyChallengeDirty = true;
           break;
         case 'plant_based_meals_count':
-           // Re-count all plant-based meals this week
            newCurrentValue = logsThisWeek.filter(log => log.totalCarbonFootprint < 0.7).length;
            weeklyChallengeDirty = true;
           break;
@@ -387,12 +378,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         localStorage.setItem(`${WEEKLY_CHALLENGE_STORAGE_KEY_PREFIX}${user.email}`, JSON.stringify(updatedWeeklyChallenge));
       }
     }
-
   }, [user, dailyChallenge, weeklyChallenge, currentUserMealLogs]);
-
-
-  // ---- END CHALLENGE & STREAK LOGIC ----
-
 
   const login = useCallback(async (name: string, email: string) => {
     setIsLoading(true);
@@ -403,6 +389,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setWeeklyTip(null); 
     setGeneralRecommendation(null);
     setFoodSwaps([]);
+    setDetectedMealItemsState(null); // Clear detected items on login
 
     const storedChat = localStorage.getItem(`${CHAT_MESSAGES_STORAGE_KEY_PREFIX}${email}`);
     setChatMessages(storedChat ? JSON.parse(storedChat) : []);
@@ -416,8 +403,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const storedStreak = localStorage.getItem(`${STREAK_DATA_STORAGE_KEY_PREFIX}${email}`);
     setStreakData(storedStreak ? JSON.parse(storedStreak) : { logStreak: 0, lastLogDate: null });
     
-    // Trigger challenge refresh for new user after state is set
-    // Note: checkAndRefresh functions are called in useEffect based on user change
     setIsLoading(false);
   }, []);
 
@@ -435,8 +420,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setDailyChallenge(null);
     setWeeklyChallenge(null);
     setStreakData({ logStreak: 0, lastLogDate: null });
+    setDetectedMealItemsState(null);
+
 
     localStorage.removeItem(USER_STORAGE_KEY);
+    localStorage.removeItem(DETECTED_ITEMS_STORAGE_KEY);
     if (prevUserEmail) {
         localStorage.removeItem(`${WEEKLY_TIP_STORAGE_KEY_PREFIX}${prevUserEmail}`);
         localStorage.removeItem(`${GENERAL_REC_STORAGE_KEY_PREFIX}${prevUserEmail}`);
@@ -446,17 +434,32 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         localStorage.removeItem(`${WEEKLY_CHALLENGE_STORAGE_KEY_PREFIX}${prevUserEmail}`);
         localStorage.removeItem(`${STREAK_DATA_STORAGE_KEY_PREFIX}${prevUserEmail}`);
     }
-    // mealLogs are global not per user for this demo, so not clearing them on logout
     setIsLoading(false);
   }, [user]);
 
   const setMealPhoto = useCallback((photoDataUri: string | null) => {
     setMealPhotoState(photoDataUri);
+    if(photoDataUri === null) { // Clear detected items if photo is cleared
+      setDetectedMealItemsState(null);
+      localStorage.removeItem(DETECTED_ITEMS_STORAGE_KEY);
+    }
   }, []);
 
-  const setMealResult = useCallback((result: EstimateCarbonFootprintFromMealPhotoOutput | null, suggestion: string | null = null) => {
+  const setDetectedMealItems = useCallback((items: AIIdentifiedFoodItem[] | null) => {
+    setDetectedMealItemsState(items);
+    if(items) {
+      localStorage.setItem(DETECTED_ITEMS_STORAGE_KEY, JSON.stringify(items));
+    } else {
+      localStorage.removeItem(DETECTED_ITEMS_STORAGE_KEY);
+    }
+  }, []);
+
+  const setMealResult = useCallback((result: FinalMealResult | null, suggestion: string | null = null) => {
     setMealResultState(result);
     setMealSuggestionState(suggestion); 
+    // Clear detected items after meal result is set (they've been processed)
+    setDetectedMealItemsState(null);
+    localStorage.removeItem(DETECTED_ITEMS_STORAGE_KEY);
   }, []);
 
   const addMealLog = useCallback(async (newLogData: Omit<MealLog, 'date' | 'timestamp' | 'userEmail' | 'mealType'>) => {
@@ -474,31 +477,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     };
 
     setMealLogs(prevLogs => {
-      const allLogs = [logToAdd, ...prevLogs]; // Add to global logs
+      const allLogs = [logToAdd, ...prevLogs];
       allLogs.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()); 
       localStorage.setItem(MEAL_LOGS_STORAGE_KEY, JSON.stringify(allLogs));
-      
-      // After logs are updated in state (which happens after this setMealLogs finishes and re-renders)
-      // then currentUserMealLogs will be up-to-date for challenge processing.
-      // So, call challenge/streak updates with the new log directly.
-      updateStreakOnMealLog(logToAdd.date);
-      // Defer challenge update to useEffect that watches currentUserMealLogs or call it with potentially stale currentUserMealLogs for immediate check
-      // For simplicity and more directness:
-      // updateChallengesOnMealLog(logToAdd); // This might use slightly stale currentUserMealLogs if not careful
-      // A better way is to let a useEffect watching mealLogs (or currentUserMealLogs) trigger updates.
       return allLogs; 
     });
-    // Call challenge update here, it will use the `mealLog` passed and `currentUserMealLogs` which will update in next render cycle
-    // This means challenge logic might operate on `currentUserMealLogs` *before* `logToAdd` is in it.
-    // This is a common React state update pattern. If precise up-to-the-millisecond data is needed for challenges from `currentUserMealLogs`,
-    // it's better to pass `[...currentUserMealLogs, logToAdd]` to the challenge functions or recalculate inside them.
-    // For now, let's make `updateChallengesOnMealLog` robust to this by using its `mealLog` param actively.
-     updateChallengesOnMealLog(logToAdd);
-
-
+    updateStreakOnMealLog(logToAdd.date);
+    updateChallengesOnMealLog(logToAdd);
   }, [user, updateStreakOnMealLog, updateChallengesOnMealLog]);
 
-  // Effect to re-evaluate daily challenge CO2e_under_today if necessary
   useEffect(() => {
     if (!user || !dailyChallenge || dailyChallenge.type !== 'co2e_under_today' || dailyChallenge.isCompleted) {
       return;
@@ -507,17 +494,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const totalCO2eToday = todaysLogs.reduce((sum, log) => sum + log.totalCarbonFootprint, 0);
 
     if (totalCO2eToday <= (dailyChallenge.targetValue || 2.5)) {
-      // This condition is met if sum is under. Completion typically at EOD.
-      // We could add a button "Check challenge status" or do an EOD check.
-      // For now, if user has logged meals and is under, it's "on track".
-      // No auto-completion here to avoid premature completion.
+      // on track
     } else {
-      // User went over the limit. Challenge for the day is technically failed.
-      // We don't have a "failed" state, just "not completed".
+      // over limit
     }
   }, [currentUserMealLogs, dailyChallenge, user]);
 
-  // Effect to re-evaluate weekly challenge weekly_co2e_under
    useEffect(() => {
     if (!user || !weeklyChallenge || weeklyChallenge.type !== 'weekly_co2e_under' || weeklyChallenge.isCompleted) {
       return;
@@ -526,36 +508,29 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const totalCO2eThisWeek = logsThisWeek.reduce((sum, log) => sum + log.totalCarbonFootprint, 0);
     
     if (totalCO2eThisWeek !== weeklyChallenge.currentValue) {
-        const isNowCompleted = totalCO2eThisWeek >= weeklyChallenge.targetValue && weeklyChallenge.type === 'weekly_co2e_under' ? false : totalCO2eThisWeek >= weeklyChallenge.targetValue;
+        const isNowCompleted = weeklyChallenge.type === 'weekly_co2e_under' 
+            ? totalCO2eThisWeek <= weeklyChallenge.targetValue 
+            : totalCO2eThisWeek >= weeklyChallenge.targetValue;
 
         const updatedWkChallenge = {
             ...weeklyChallenge,
             currentValue: totalCO2eThisWeek,
-            isCompleted: weeklyChallenge.type === 'weekly_co2e_under' ? totalCO2eThisWeek <= weeklyChallenge.targetValue : isNowCompleted, // Special for 'under' type
+            isCompleted: isNowCompleted,
         };
-         if (weeklyChallenge.type === 'weekly_co2e_under' && totalCO2eThisWeek > weeklyChallenge.targetValue) {
-            // If it's an "under" challenge and they've gone over, it's no longer considered completed for the "on track" sense
-            updatedWkChallenge.isCompleted = false; 
-        } else if (weeklyChallenge.type !== 'weekly_co2e_under' && totalCO2eThisWeek >= weeklyChallenge.targetValue) {
-            updatedWkChallenge.isCompleted = true;
-        }
-
-
+        
         setWeeklyChallenge(updatedWkChallenge);
         localStorage.setItem(`${WEEKLY_CHALLENGE_STORAGE_KEY_PREFIX}${user.email}`, JSON.stringify(updatedWkChallenge));
     }
   }, [currentUserMealLogs, weeklyChallenge, user]);
 
-
   const getMealLogsSummaryForAI = useCallback((logsToSummarize: MealLog[]): string => {
     if (logsToSummarize.length === 0) return "No meals logged in the relevant period.";
-
     const today = new Date();
     const sevenDaysAgo = subDays(today, 6);
     
     const recentLogs = logsToSummarize.filter(log => {
         try {
-            const logDateObj = parseISO(log.date); // log.date is already YYYY-MM-DD
+            const logDateObj = parseISO(log.date);
             return logDateObj >= sevenDaysAgo && logDateObj <= today;
         } catch (e) {
             console.warn("Skipping log with invalid date for summary:", log);
@@ -585,24 +560,19 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       }).join('\n') || "No meal activity to summarize.";
   }, []);
 
-
   const fetchWeeklyTip = useCallback(async () => {
     if (!user || currentUserMealLogs.length === 0) {
       setWeeklyTip(currentUserMealLogs.length === 0 && user ? "Log some meals to get your first weekly tip!" : null);
       return;
     }
     setIsLoadingWeeklyTip(true);
-
     const cacheKey = `${WEEKLY_TIP_STORAGE_KEY_PREFIX}${user.email}`;
     const cachedDataString = localStorage.getItem(cacheKey);
     
     if (cachedDataString) {
       try {
         const cachedData: CachedWeeklyTip = JSON.parse(cachedDataString);
-        const cacheDate = new Date(cachedData.timestamp);
-        const today = new Date();
-         // Tip refreshes if it's a new day
-        if (differenceInCalendarDays(today, cacheDate) === 0 && cachedData.tip) {
+        if (differenceInCalendarDays(new Date(), new Date(cachedData.timestamp)) === 0 && cachedData.tip) {
           setWeeklyTip(cachedData.tip);
           setIsLoadingWeeklyTip(false);
           return;
@@ -616,7 +586,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         setIsLoadingWeeklyTip(false);
         return;
     }
-
     try {
       const input: GenerateTipInput = { mealLogsSummary };
       const result = await generateWeeklyTip(input);
@@ -759,7 +728,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   }, [user]);
 
-
   return (
     <AppContext.Provider value={{
       user,
@@ -767,6 +735,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       logout,
       mealPhoto,
       setMealPhoto,
+      detectedMealItems,
+      setDetectedMealItems,
       mealResult,
       mealSuggestion, 
       setMealResult,
@@ -804,4 +774,3 @@ export const useAppContext = (): AppContextProps => {
   }
   return context;
 };
-

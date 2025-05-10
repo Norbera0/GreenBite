@@ -1,97 +1,82 @@
+
 // src/ai/flows/estimate-carbon-footprint.ts
 'use server';
 
 /**
- * @fileOverview Estimates the carbon footprint of a meal from a photo.
+ * @fileOverview Estimates the carbon footprint of a meal based on user-confirmed food items and quantities.
  *
- * - estimateCarbonFootprintFromMealPhoto - A function that handles the carbon footprint estimation process.
- * - EstimateCarbonFootprintFromMealPhotoInput - The input type for the estimateCarbonFootprintFromMealPhoto function.
- * - EstimateCarbonFootprintFromMealPhotoOutput - The return type for the estimateCarbonFootprintFromMealPhoto function.
+ * - estimateMealCarbonFootprint - A function that handles the carbon footprint estimation process.
+ * - EstimateMealCarbonFootprintInput - The input type for the function.
+ * - EstimateMealCarbonFootprintOutput - The return type for the function.
  */
 
 import {ai} from '@/ai/genkit';
 import {
-  EstimateCarbonFootprintFromMealPhotoInputSchema,
-  type EstimateCarbonFootprintFromMealPhotoInput,
-  EstimateCarbonFootprintFromMealPhotoOutputSchema,
-  type EstimateCarbonFootprintFromMealPhotoOutput,
-} from '@/ai/schemas'; // Import from the new schemas file
+  EstimateCarbonFootprintInputSchema, // Updated input schema
+  type EstimateCarbonFootprintInput,    // Updated input type
+  EstimateCarbonFootprintOutputSchema,  // Updated output schema (only CO2e)
+  type EstimateCarbonFootprintOutput,   // Updated output type
+} from '@/ai/schemas';
 
-// Use the placeholder service function to simulate the backend call structure if needed,
-// but the core logic is within the flow itself.
-// import { estimateCarbonFootprint } from '@/services/food-carbon-footprint';
+// Prompt for estimating carbon footprint from a list of confirmed food items
+const estimateFootprintFromItemsPrompt = ai.definePrompt({
+  name: 'estimateFootprintFromItemsPrompt',
+  input: {schema: EstimateCarbonFootprintInputSchema}, // Uses new input schema
+  output: {schema: EstimateCarbonFootprintOutputSchema }, // Uses new output schema
+  prompt: `You are an AI assistant that estimates the total carbon footprint (in kg CO2e) for a meal based on a list of food items and their quantities.
+  Optionally, a photo of the meal is provided for visual context, but the primary source of information is the food item list.
 
-// Schemas and Types are now imported from src/ai/schemas.ts
+  Analyze the following meal information:
+  Food Items:
+  {{#each foodItems}}
+  - {{this.name}} (Quantity: {{this.quantity}})
+  {{/each}}
+  {{#if photoDataUri}}
+  Meal Photo (for context): {{media url=photoDataUri}}
+  {{/if}}
 
-// This prompt now asks for *both* identification and *total* footprint estimation.
-// This simplifies the flow by doing it in one LLM call.
-const identifyAndEstimatePrompt = ai.definePrompt({
-  name: 'identifyAndEstimatePrompt',
-  input: {schema: EstimateCarbonFootprintFromMealPhotoInputSchema},
-  output: {schema: EstimateCarbonFootprintFromMealPhotoOutputSchema }, // Output includes total footprint
-  prompt: `You are an AI assistant that identifies food items in a meal from a photo and estimates the total carbon footprint (in kg CO2e).
-
-  Analyze the following meal photo and the user's description of quantity/units.
-  1. Identify the main food items present.
-  2. Use the user's quantity description to help estimate amounts.
-  3. Estimate the *total* carbon footprint for the entire meal based on the identified items and estimated quantities. Use average carbon footprint data for common foods.
-
-  Photo: {{media url=photoDataUri}}
-  User Quantity and Units Description: {{{quantityAndUnits}}}
-
-  Return the identified food items and the *single total* estimated carbon footprint as a JSON object matching the provided schema. Provide the footprint as 'carbonFootprintKgCO2e'.
+  Estimate the *total* carbon footprint for the entire meal based on these items and quantities. Use average carbon footprint data for common foods.
+  Return *only* the single total estimated carbon footprint as 'carbonFootprintKgCO2e' in a JSON object matching the provided schema.
   `,
 });
 
 // This function is the main export intended for use by client components.
-export async function estimateCarbonFootprintFromMealPhoto(
-  input: EstimateCarbonFootprintFromMealPhotoInput
-): Promise<EstimateCarbonFootprintFromMealPhotoOutput> {
-   // Directly call the flow defined below
-  return estimateCarbonFootprintFromMealPhotoFlow(input);
+export async function estimateMealCarbonFootprint(
+  input: EstimateCarbonFootprintInput
+): Promise<EstimateCarbonFootprintOutput> {
+  return estimateMealCarbonFootprintFlow(input);
 }
 
-// The Genkit flow definition itself is not exported directly.
-const estimateCarbonFootprintFromMealPhotoFlow = ai.defineFlow(
+// The Genkit flow definition
+const estimateMealCarbonFootprintFlow = ai.defineFlow(
   {
-    name: 'estimateCarbonFootprintFromMealPhotoFlow',
-    inputSchema: EstimateCarbonFootprintFromMealPhotoInputSchema,
-    outputSchema: EstimateCarbonFootprintFromMealPhotoOutputSchema,
+    name: 'estimateMealCarbonFootprintFlow',
+    inputSchema: EstimateCarbonFootprintInputSchema,
+    outputSchema: EstimateCarbonFootprintOutputSchema,
   },
-  async input => {
-     console.log("Calling Genkit Flow with input:", input);
+  async (input) => {
+     console.log("Calling estimateMealCarbonFootprintFlow with input:", input);
      try {
-       const result = await identifyAndEstimatePrompt(input); // Call the combined prompt
+       const result = await estimateFootprintFromItemsPrompt(input);
 
-       if (!result.output) {
-          throw new Error('AI did not return the expected output format.');
+       if (!result.output || typeof result.output.carbonFootprintKgCO2e === 'undefined') {
+          throw new Error('AI did not return the expected carbon footprint output format.');
        }
 
-       console.log("Genkit Flow Result:", result.output);
-        // The prompt now directly returns the required output structure
-       return result.output;
+       console.log("Estimate Meal Carbon Footprint Flow Result:", result.output);
+       return result.output; // Contains only carbonFootprintKgCO2e
 
      } catch (error) {
-        console.error("Error in Genkit flow:", error);
+        console.error("Error in estimate meal carbon footprint flow:", error);
         // Re-throw or handle error appropriately
-         throw new Error(`AI processing failed: ${error instanceof Error ? error.message : String(error)}`);
+         throw new Error(`AI processing failed for carbon footprint estimation: ${error instanceof Error ? error.message : String(error)}`);
      }
-
-    // // ---- Old logic (calling separate service) is removed as the prompt now handles estimation ---
-    // const foodItemsResponse = await identifyFoodItemsPrompt(input);
-    // const foodItems = foodItemsResponse.output!;
-
-    // // Call the placeholder service function (or potentially a real backend if logic was split)
-    // const carbonFootprintResult = await estimateCarbonFootprint(foodItems);
-
-    // return {
-    //   foodItems: foodItems,
-    //   carbonFootprintKgCO2e: carbonFootprintResult.totalCarbonFootprintKgCO2e, // Use total from result
-    // };
-    // ---- End of old logic ---
   }
 );
 
-// Make EstimateCarbonFootprintFromMealPhotoInput and EstimateCarbonFootprintFromMealPhotoOutput types available for import
-// They are already exported from src/ai/schemas.ts, so no need to re-export here.
-export type { EstimateCarbonFootprintFromMealPhotoInput, EstimateCarbonFootprintFromMealPhotoOutput };
+// Make types available for import
+export type { EstimateCarbonFootprintInput as EstimateMealCarbonFootprintInput, EstimateCarbonFootprintOutput as EstimateMealCarbonFootprintOutput };
+
+// Legacy export for estimateCarbonFootprintFromMealPhoto - can be deprecated or adapted
+// For now, let's keep the old one but it should not be used for the new flow.
+export { estimateCarbonFootprintFromMealPhoto, type EstimateCarbonFootprintFromMealPhotoInput, type EstimateCarbonFootprintFromMealPhotoOutput } from '@/ai/flows/legacy-estimate-carbon-footprint';

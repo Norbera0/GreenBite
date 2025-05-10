@@ -15,7 +15,82 @@ export const FoodItemSchema = z.object({
  */
 export type FoodItem = z.infer<typeof FoodItemSchema>;
 
+
+// --- Identify Food Items and Quantities Schemas ---
+
 /**
+ * Zod schema for an item identified by the AI with its estimated quantity.
+ */
+export const IdentifiedItemSchema = z.object({
+  name: z.string().describe('The name of the identified food item.'),
+  estimatedQuantity: z.string().describe('The AI-estimated quantity and units of the food item (e.g., "150g", "1 whole").'),
+});
+export type IdentifiedItem = z.infer<typeof IdentifiedItemSchema>;
+
+/**
+ * Zod schema for the input required by the food item and quantity identification AI flow.
+ */
+export const IdentifyFoodAndQuantitiesInputSchema = z.object({
+  photoDataUri: z
+    .string()
+    .describe(
+      "A photo of a meal, as a data URI that must include a MIME type and use Base64 encoding. Expected format: 'data:<mimetype>;base64,<encoded_data>'."
+    ),
+});
+export type IdentifyFoodAndQuantitiesInput = z.infer<typeof IdentifyFoodAndQuantitiesInputSchema>;
+
+/**
+ * Zod schema for the output produced by the food item and quantity identification AI flow.
+ */
+export const IdentifyFoodAndQuantitiesOutputSchema = z.object({
+  identifiedItems: z.array(IdentifiedItemSchema).describe('A list of food items identified in the photo with their estimated quantities.'),
+});
+export type IdentifyFoodAndQuantitiesOutput = z.infer<typeof IdentifyFoodAndQuantitiesOutputSchema>;
+
+
+// --- Estimate Carbon Footprint Schemas (Updated) ---
+
+/**
+ * Zod schema for the input required by the carbon footprint estimation AI flow.
+ * This flow now takes user-confirmed food items and quantities.
+ */
+export const EstimateCarbonFootprintInputSchema = z.object({
+  photoDataUri: z
+    .string()
+    .optional() // Photo might be optional if only text-based items are provided, but good for context.
+    .describe(
+      "A photo of a meal, as a data URI. Primarily for visual context if the AI needs it, as items are already specified."
+    ),
+  foodItems: z.array(FoodItemSchema).describe('The user-confirmed list of food items and their quantities.'),
+});
+
+/**
+ * TypeScript type inferred from the EstimateCarbonFootprintInputSchema.
+ */
+export type EstimateCarbonFootprintInput = z.infer<
+  typeof EstimateCarbonFootprintInputSchema
+>;
+
+/**
+ * Zod schema for the output produced by the carbon footprint estimation AI flow.
+ * It only returns the total carbon footprint now. The food items are known from the input.
+ */
+export const EstimateCarbonFootprintOutputSchema = z.object({
+  carbonFootprintKgCO2e: z
+    .number()
+    .describe('The *total* estimated carbon footprint of the meal in kg CO2e.'),
+});
+
+/**
+ * TypeScript type inferred from the EstimateCarbonFootprintOutputSchema.
+ */
+export type EstimateCarbonFootprintOutput = z.infer<
+  typeof EstimateCarbonFootprintOutputSchema
+>;
+
+// --- Legacy Schemas for reference or if needed by other parts not yet updated ---
+/**
+ * @deprecated Use EstimateCarbonFootprintInputSchema instead.
  * Zod schema for the input required by the carbon footprint estimation AI flow.
  */
 export const EstimateCarbonFootprintFromMealPhotoInputSchema = z.object({
@@ -26,30 +101,16 @@ export const EstimateCarbonFootprintFromMealPhotoInputSchema = z.object({
     ),
   quantityAndUnits: z.string().describe('User provided description of the quantity and units of the entire meal (e.g., "Large bowl", "200g chicken, 1 cup rice").'),
 });
+export type EstimateCarbonFootprintFromMealPhotoInput = z.infer<typeof EstimateCarbonFootprintFromMealPhotoInputSchema>;
 
-/**
- * TypeScript type inferred from the EstimateCarbonFootprintFromMealPhotoInputSchema.
- */
-export type EstimateCarbonFootprintFromMealPhotoInput = z.infer<
-  typeof EstimateCarbonFootprintFromMealPhotoInputSchema
->;
 
-/**
- * Zod schema for the output produced by the carbon footprint estimation AI flow.
- */
 export const EstimateCarbonFootprintFromMealPhotoOutputSchema = z.object({
   foodItems: z.array(FoodItemSchema).describe('The identified food items in the meal.'),
   carbonFootprintKgCO2e: z
     .number()
     .describe('The *total* estimated carbon footprint of the meal in kg CO2e.'),
 });
-
-/**
- * TypeScript type inferred from the EstimateCarbonFootprintFromMealPhotoOutputSchema.
- */
-export type EstimateCarbonFootprintFromMealPhotoOutput = z.infer<
-  typeof EstimateCarbonFootprintFromMealPhotoOutputSchema
->;
+export type EstimateCarbonFootprintFromMealPhotoOutput = z.infer<typeof EstimateCarbonFootprintFromMealPhotoOutputSchema>;
 
 
 // --- Meal Suggestion Schemas ---
@@ -227,3 +288,8 @@ export type GenerateWeeklyChallengeOutput = z.infer<typeof GenerateWeeklyChallen
 // Re-exporting existing weekly tip schemas for clarity, though they are now generalized to GenerateTipInputSchema/OutputSchema
 export { GenerateTipInputSchema as GenerateWeeklyTipInputSchema, GenerateTipOutputSchema as GenerateWeeklyTipOutputSchema};
 export type { GenerateTipInput as GenerateWeeklyTipInput, GenerateTipOutput as GenerateWeeklyTipOutput };
+
+// Export new types for carbon footprint estimation
+export type { EstimateCarbonFootprintInput as EstimateMealCarbonFootprintInput, EstimateCarbonFootprintOutput as EstimateMealCarbonFootprintOutput };
+// Export new types for food identification
+export type { IdentifyFoodAndQuantitiesInput, IdentifyFoodAndQuantitiesOutput, IdentifiedItem as AIIdentifiedFoodItem };
