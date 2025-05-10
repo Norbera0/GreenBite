@@ -10,11 +10,37 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Plus, Leaf, Utensils, CalendarDays, Clock, ArrowDown, ArrowUp, PlusCircle, Apple } from 'lucide-react'; // Added Apple
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
-import { format, subDays, eachDayOfInterval, parseISO, startOfDay, isSameDay, getHours, startOfWeek, endOfWeek } from 'date-fns';
+import { format, subDays, eachDayOfInterval, parseISO, startOfDay, isSameDay, getHours, startOfWeek, endOfWeek, differenceInCalendarDays } from 'date-fns';
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { MealLog } from '@/context/app-context';
 import { cn } from '@/lib/utils';
+
+
+// Helper function to calculate percentage change and direction
+function calculateChange(current: number, previous: number): { value: number; direction: 'up' | 'down' | 'neutral' } {
+  let value = 0;
+  let direction: 'up' | 'down' | 'neutral' = 'neutral';
+
+  if (previous > 0) {
+    value = ((current - previous) / previous) * 100;
+  } else if (current > 0) { // Previous is 0 or negative, current is positive
+    value = 100; // Represent as 100% increase if starting from 0
+  } else if (current === 0 && previous === 0) {
+    value = 0; // No change if both are zero
+  }
+  // If previous > 0 and current is 0, value will be -100%
+  // If previous is negative, the concept of percentage change might be misleading,
+  // but CO2e values should be non-negative.
+
+  if (current > previous) {
+    direction = 'up';
+  } else if (current < previous) {
+    direction = 'down';
+  }
+  
+  return { value: parseFloat(value.toFixed(1)), direction };
+}
 
 
 const HomePage: NextPage = () => {
@@ -32,47 +58,83 @@ const HomePage: NextPage = () => {
   const todayDateObj = useMemo(() => startOfDay(new Date()), []);
   
   // Current week for graph and date scroller (Monday to Sunday)
-  const currentWeekStart = useMemo(() => startOfWeek(todayDateObj, { weekStartsOn: 1 }), [todayDateObj]);
-  const currentWeekEnd = useMemo(() => endOfWeek(todayDateObj, { weekStartsOn: 1 }), [todayDateObj]);
+  const currentGraphWeekStart = useMemo(() => startOfWeek(todayDateObj, { weekStartsOn: 1 }), [todayDateObj]);
+  const currentGraphWeekEnd = useMemo(() => endOfWeek(todayDateObj, { weekStartsOn: 1 }), [todayDateObj]);
 
-  const { todaysTotalCO2e, weeklyTotalCO2e, averageDailyCO2e } = useMemo(() => {
-    if (!mealLogs) return { todaysTotalCO2e: 0, weeklyTotalCO2e: 0, averageDailyCO2e: 0 };
+  const { 
+    todaysTotalCO2e, 
+    rolling7DayTotalCO2e, 
+    rolling7DayAverageDailyCO2e,
+    avgDailyChange,
+    weeklyChange 
+  } = useMemo(() => {
+    if (!mealLogs) return { 
+      todaysTotalCO2e: 0, 
+      rolling7DayTotalCO2e: 0, 
+      rolling7DayAverageDailyCO2e: 0,
+      avgDailyChange: { value: 0, direction: 'neutral' as 'up' | 'down' | 'neutral' },
+      weeklyChange: { value: 0, direction: 'neutral' as 'up' | 'down' | 'neutral' }
+    };
     
-    const todayStr = format(todayDateObj, 'yyyy-MM-dd');
-    let daily = 0;
-    let weekly = 0;
-    let daysWithLogs = new Set<string>();
+    const todayDateStr = format(todayDateObj, 'yyyy-MM-dd');
 
-    // Calculate weekly totals based on the current Monday-Sunday range
+    // Current 7-day rolling window (includes today)
+    const currentPeriodEnd = todayDateObj;
+    const currentPeriodStart = startOfDay(subDays(todayDateObj, 6));
+
+    // Previous 7-day rolling window
+    const previousPeriodEnd = startOfDay(subDays(todayDateObj, 7));
+    const previousPeriodStart = startOfDay(subDays(todayDateObj, 13));
+
+    let calculatedTodaysTotalCO2e = 0;
+
+    let current7DayTotal = 0;
+    const current7DayLogsDates = new Set<string>();
+
+    let previous7DayTotal = 0;
+    const previous7DayLogsDates = new Set<string>();
+
     mealLogs.forEach(log => {
-      const logDateObj = parseISO(log.date);
-      if (log.date === todayStr) {
-        daily += log.totalCarbonFootprint;
+      const logDateObj = parseISO(log.date); 
+
+      // Today's total
+      if (log.date === todayDateStr) {
+        calculatedTodaysTotalCO2e += log.totalCarbonFootprint;
       }
-      if (logDateObj >= currentWeekStart && logDateObj <= currentWeekEnd) {
-        weekly += log.totalCarbonFootprint;
-        daysWithLogs.add(log.date);
+
+      // Current 7-day rolling window
+      if (logDateObj >= currentPeriodStart && logDateObj <= currentPeriodEnd) {
+        current7DayTotal += log.totalCarbonFootprint;
+        current7DayLogsDates.add(log.date);
+      }
+
+      // Previous 7-day rolling window
+      if (logDateObj >= previousPeriodStart && logDateObj <= previousPeriodEnd) {
+        previous7DayTotal += log.totalCarbonFootprint;
+        previous7DayLogsDates.add(log.date);
       }
     });
-    
-    const numDaysForAverage = daysWithLogs.size > 0 ? daysWithLogs.size : Math.max(1, (new Date().getDay() || 7)); // Use current day index if no logs
-    return { 
-      todaysTotalCO2e: daily, 
-      weeklyTotalCO2e: weekly, 
-      averageDailyCO2e: weekly / numDaysForAverage 
-    };
-  }, [mealLogs, todayDateObj, currentWeekStart, currentWeekEnd]);
 
-  // Placeholder for percentage change calculations
-  // TODO: Implement actual calculation logic for these percentage changes.
-  const avgDailyChange = { value: 1.7, direction: 'down' as 'down' | 'up' | 'neutral' };
-  const weeklyChange = { value: 5.3, direction: 'up' as 'down' | 'up' | 'neutral' };
+    const current7DayAverage = current7DayLogsDates.size > 0 ? current7DayTotal / current7DayLogsDates.size : 0;
+    const previous7DayAverage = previous7DayLogsDates.size > 0 ? previous7DayTotal / previous7DayLogsDates.size : 0;
+    
+    const calculatedAvgDailyChange = calculateChange(current7DayAverage, previous7DayAverage);
+    const calculatedWeeklyChange = calculateChange(current7DayTotal, previous7DayTotal);
+
+    return { 
+      todaysTotalCO2e: calculatedTodaysTotalCO2e,
+      rolling7DayTotalCO2e: current7DayTotal,
+      rolling7DayAverageDailyCO2e: current7DayAverage,
+      avgDailyChange: calculatedAvgDailyChange,
+      weeklyChange: calculatedWeeklyChange,
+    };
+  }, [mealLogs, todayDateObj]);
 
 
   const graphData = useMemo(() => {
     if (!mealLogs) return [];
 
-    const dateInterval = eachDayOfInterval({ start: currentWeekStart, end: currentWeekEnd });
+    const dateInterval = eachDayOfInterval({ start: currentGraphWeekStart, end: currentGraphWeekEnd });
     const dailyTotalsMap = new Map<string, number>();
 
     dateInterval.forEach(day => {
@@ -81,7 +143,7 @@ const HomePage: NextPage = () => {
 
     mealLogs.forEach(log => {
       const logDateObj = parseISO(log.date);
-      if (logDateObj >= currentWeekStart && logDateObj <= currentWeekEnd) {
+      if (logDateObj >= currentGraphWeekStart && logDateObj <= currentGraphWeekEnd) {
         const dateStr = log.date;
         dailyTotalsMap.set(dateStr, (dailyTotalsMap.get(dateStr) ?? 0) + log.totalCarbonFootprint);
       }
@@ -92,11 +154,13 @@ const HomePage: NextPage = () => {
       totalCO2e: parseFloat(total.toFixed(2)),
       fullDate: date,
     })).sort((a,b) => parseISO(a.fullDate).getTime() - parseISO(b.fullDate).getTime());
-  }, [mealLogs, currentWeekStart, currentWeekEnd]);
+  }, [mealLogs, currentGraphWeekStart, currentGraphWeekEnd]);
   
   const dateScrollerDates = useMemo(() => {
-    return eachDayOfInterval({ start: currentWeekStart, end: currentWeekEnd });
-  }, [currentWeekStart, currentWeekEnd]);
+    // Show 7 days in scroller, centered around selectedDate, or starting from current week by default
+    // For simplicity, let's keep it to the current graph week for now.
+    return eachDayOfInterval({ start: currentGraphWeekStart, end: currentGraphWeekEnd });
+  }, [currentGraphWeekStart, currentGraphWeekEnd]);
 
 
   const filteredMealsForSelectedDateTimeType = useMemo(() => {
@@ -130,24 +194,24 @@ const HomePage: NextPage = () => {
     <div className="flex flex-col min-h-screen bg-secondary/30">
       <main className="flex-grow container mx-auto p-4 space-y-6">
         <h1 className="text-2xl sm:text-3xl font-bold text-center text-primary my-4">
-          Your Dietary Climate Impact
+          Home
         </h1>
 
         <Card className="bg-primary-light shadow-lg border-primary/20">
-          <CardContent className="p-4 md:p-6 flex flex-row">
-            <div className="flex-1 text-center pr-3 md:pr-6 py-2">
+          <CardContent className="p-4 md:p-6 flex flex-col sm:flex-row">
+            <div className="flex-1 text-center sm:pr-3 md:pr-6 py-2 sm:border-r border-primary/30 mb-4 sm:mb-0">
               <p className="text-xs font-bold uppercase text-primary/80 tracking-wider mb-1">AS OF TODAY</p>
-              <p className="text-6xl md:text-7xl font-bold text-primary my-1">{todaysTotalCO2e.toFixed(0)}</p>
+              <p className="text-6xl md:text-7xl font-bold text-primary my-1">{todaysTotalCO2e.toFixed(2)}</p>
               <p className="text-base md:text-lg text-muted-foreground">kg CO₂e</p>
             </div>
-            <div className="border-l border-primary/30"></div>
-            <div className="flex-1 pl-3 md:pl-6 flex flex-col justify-around">
-              <div className="text-center">
-                <p className="text-xs font-bold uppercase text-primary/80 tracking-wider mb-1">AVE. DAILY</p>
+            
+            <div className="flex-1 sm:pl-3 md:pl-6 flex flex-col justify-around">
+              <div className="text-center mb-2 sm:mb-0">
+                <p className="text-xs font-bold uppercase text-primary/80 tracking-wider mb-1">AVE. DAILY (LAST 7 DAYS)</p>
                 <div className="flex items-baseline justify-center space-x-1 md:space-x-2">
-                  <p className="text-4xl md:text-5xl font-bold text-muted-foreground">{averageDailyCO2e.toFixed(0)}</p>
-                  <span className={`text-sm md:text-base font-medium flex items-center ${avgDailyChange.direction === 'down' ? 'text-destructive' : 'text-primary'}`}>
-                    {avgDailyChange.direction === 'down' ? <ArrowDown className="w-4 h-4" /> : <ArrowUp className="w-4 h-4" />}
+                  <p className="text-4xl md:text-5xl font-bold text-muted-foreground">{rolling7DayAverageDailyCO2e.toFixed(2)}</p>
+                  <span className={`text-sm md:text-base font-medium flex items-center ${avgDailyChange.direction === 'down' ? 'text-destructive' : (avgDailyChange.direction === 'up' ? 'text-green-600' : 'text-muted-foreground')}`}>
+                    {avgDailyChange.direction === 'down' ? <ArrowDown className="w-4 h-4" /> : (avgDailyChange.direction === 'up' ? <ArrowUp className="w-4 h-4" /> : null)}
                     {avgDailyChange.value.toFixed(1)}%
                   </span>
                 </div>
@@ -157,9 +221,9 @@ const HomePage: NextPage = () => {
               <div className="text-center">
                 <p className="text-xs font-bold uppercase text-primary/80 tracking-wider mb-1">OVER THE LAST 7 DAYS</p>
                 <div className="flex items-baseline justify-center space-x-1 md:space-x-2">
-                  <p className="text-4xl md:text-5xl font-bold text-muted-foreground">{weeklyTotalCO2e.toFixed(0)}</p>
-                  <span className={`text-sm md:text-base font-medium flex items-center ${weeklyChange.direction === 'down' ? 'text-destructive' : 'text-primary'}`}>
-                    {weeklyChange.direction === 'down' ? <ArrowDown className="w-4 h-4" /> : <ArrowUp className="w-4 h-4" />}
+                  <p className="text-4xl md:text-5xl font-bold text-muted-foreground">{rolling7DayTotalCO2e.toFixed(2)}</p>
+                  <span className={`text-sm md:text-base font-medium flex items-center ${weeklyChange.direction === 'down' ? 'text-destructive' : (weeklyChange.direction === 'up' ? 'text-green-600' : 'text-muted-foreground')}`}>
+                    {weeklyChange.direction === 'down' ? <ArrowDown className="w-4 h-4" /> : (weeklyChange.direction === 'up' ? <ArrowUp className="w-4 h-4" /> : null)}
                     {weeklyChange.value.toFixed(1)}%
                   </span>
                 </div>
@@ -171,7 +235,7 @@ const HomePage: NextPage = () => {
 
         <Card className="shadow-lg">
           <CardHeader>
-            <CardTitle className="text-lg font-semibold text-center text-primary">Released CO₂e (This Week)</CardTitle>
+            <CardTitle className="text-lg font-semibold text-center text-primary">Released CO₂e (This Week: Mon-Sun)</CardTitle>
           </CardHeader>
           <CardContent className="h-[250px] p-2">
             <ResponsiveContainer width="100%" height="100%">
@@ -266,16 +330,16 @@ const HomePage: NextPage = () => {
                            <p className="text-sm font-semibold text-primary truncate" title={log.foodItems.map(item => item.name).join(', ') || "Meal"}>
                              {log.foodItems.map(item => item.name).join(', ') || "Meal"}
                            </p>
-                           <span className="text-sm font-medium text-primary whitespace-nowrap">
-                             {log.totalCarbonFootprint.toFixed(2)} kg CO₂e
-                           </span>
+                            <p className="text-xs text-muted-foreground flex items-center whitespace-nowrap">
+                                <Clock className="w-3 h-3 mr-1" />{format(parseISO(log.timestamp), 'p')}
+                            </p>
                         </div>
                         <p className="text-xs text-muted-foreground mb-1">
                           {log.foodItems.map(item => item.quantity).filter(Boolean).join(', ') || "Quantity not specified"}
                         </p>
-                        <p className="text-xs text-muted-foreground flex items-center">
-                             <Clock className="w-3 h-3 mr-1" />{format(parseISO(log.timestamp), 'p')}
-                        </p>
+                        <span className="text-sm font-medium text-primary whitespace-nowrap">
+                            {log.totalCarbonFootprint.toFixed(2)} kg CO₂e
+                        </span>
                       </div>
                     </li>
                   ))}
