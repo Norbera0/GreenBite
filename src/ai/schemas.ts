@@ -79,29 +79,117 @@ export const GenerateMealSuggestionOutputSchema = z.object({
 export type GenerateMealSuggestionOutput = z.infer<typeof GenerateMealSuggestionOutputSchema>;
 
 
-// --- Weekly Tip Schemas ---
+// --- Weekly Tip Schemas (can also be used for General Recommendation Tip) ---
 
 /**
  * Zod schema for the input required by the weekly tip generation AI flow.
+ * Can also be used for generating general recommendation tips.
  */
-export const GenerateWeeklyTipInputSchema = z.object({
+export const GenerateTipInputSchema = z.object({
   mealLogsSummary: z.string().describe("A multi-line string summarizing the user's meals over the last 7 days, including food items, quantities, and CO2e values, formatted day by day."),
   // pastTips: z.array(z.string()).optional().describe("An optional list of previously generated tips to avoid repetition."),
 });
 
 /**
- * TypeScript type inferred from the GenerateWeeklyTipInputSchema.
+ * TypeScript type inferred from the GenerateTipInputSchema.
  */
-export type GenerateWeeklyTipInput = z.infer<typeof GenerateWeeklyTipInputSchema>;
+export type GenerateTipInput = z.infer<typeof GenerateTipInputSchema>;
 
 /**
- * Zod schema for the output produced by the weekly tip generation AI flow.
+ * Zod schema for the output produced by the weekly/general tip generation AI flow.
  */
-export const GenerateWeeklyTipOutputSchema = z.object({
-  tip: z.string().describe('A 1-2 sentence friendly and specific suggestion for reducing carbon footprint based on weekly patterns.'),
+export const GenerateTipOutputSchema = z.object({
+  tip: z.string().describe('A 1-2 sentence friendly and specific suggestion for reducing carbon footprint based on weekly patterns or general knowledge.'),
 });
 
 /**
- * TypeScript type inferred from the GenerateWeeklyTipOutputSchema.
+ * TypeScript type inferred from the GenerateTipOutputSchema.
  */
-export type GenerateWeeklyTipOutput = z.infer<typeof GenerateWeeklyTipOutputSchema>;
+export type GenerateTipOutput = z.infer<typeof GenerateTipOutputSchema>;
+
+
+// --- Food Swaps Schemas ---
+
+/**
+ * Zod schema for a single food swap suggestion.
+ */
+export const FoodSwapSchema = z.object({
+  originalItem: z.string().describe("The high-impact food item the user commonly eats."),
+  suggestedItem: z.string().describe("The lower-impact alternative food item."),
+  co2eSavingEstimate: z.string().describe("Estimated CO2e savings, e.g., '15.4 kg CO2e/month' or 'by 70%'."),
+  details: z.string().optional().describe("A brief explanation for the suggestion."),
+});
+
+/**
+ * TypeScript type inferred from the FoodSwapSchema.
+ */
+export type FoodSwap = z.infer<typeof FoodSwapSchema>;
+
+/**
+ * Zod schema for the input required by the food swaps generation AI flow.
+ */
+export const GenerateFoodSwapsInputSchema = z.object({
+  mealLogsSummary: z.string().describe("A multi-line string summarizing the user's meals over the last 7 days, including food items, quantities, and CO2e values, formatted day by day."),
+});
+
+/**
+ * TypeScript type inferred from the GenerateFoodSwapsInputSchema.
+ */
+export type GenerateFoodSwapsInput = z.infer<typeof GenerateFoodSwapsInputSchema>;
+
+/**
+ * Zod schema for the output produced by the food swaps generation AI flow.
+ */
+export const GenerateFoodSwapsOutputSchema = z.object({
+  swaps: z.array(FoodSwapSchema).min(1).max(5).describe("A list of 3-5 food swap suggestions."),
+});
+
+/**
+ * TypeScript type inferred from the GenerateFoodSwapsOutputSchema.
+ */
+export type GenerateFoodSwapsOutput = z.infer<typeof GenerateFoodSwapsOutputSchema>;
+
+
+// --- AI Chatbot Schemas ---
+
+/**
+ * Zod schema for a single message in the chat history.
+ */
+export const ChatMessageRoleSchema = z.enum(["user", "model"]);
+export const ChatMessagePartSchema = z.object({ text: z.string() });
+export const ChatHistoryMessageSchema = z.object({
+  role: ChatMessageRoleSchema,
+  parts: z.array(ChatMessagePartSchema),
+});
+export type ChatHistoryMessage = z.infer<typeof ChatHistoryMessageSchema>;
+
+
+/**
+ * Zod schema for the input required by the AI chatbot flow.
+ */
+export const AskAIChatbotInputSchema = z.object({
+  userQuestion: z.string().describe("The user's question about low-carbon eating."),
+  mealLogsSummary: z.string().describe("A summary of the user's meal logs from the last 7 days for context."),
+  chatHistory: z.array(ChatHistoryMessageSchema).optional().describe("Previous messages in the conversation for context to maintain conversation flow."),
+});
+
+/**
+ * TypeScript type inferred from the AskAIChatbotInputSchema.
+ */
+export type AskAIChatbotInput = z.infer<typeof AskAIChatbotInputSchema>;
+
+/**
+ * Zod schema for the output produced by the AI chatbot flow.
+ */
+export const AskAIChatbotOutputSchema = z.object({
+  answer: z.string().describe("The AI's answer to the user's question."),
+});
+
+/**
+ * TypeScript type inferred from the AskAIChatbotOutputSchema.
+ */
+export type AskAIChatbotOutput = z.infer<typeof AskAIChatbotOutputSchema>;
+
+// Re-exporting existing weekly tip schemas for clarity, though they are now generalized to GenerateTipInputSchema/OutputSchema
+export { GenerateTipInputSchema as GenerateWeeklyTipInputSchema, GenerateTipOutputSchema as GenerateWeeklyTipOutputSchema};
+export type { GenerateTipInput as GenerateWeeklyTipInput, GenerateTipOutput as GenerateWeeklyTipOutput };

@@ -3,14 +3,14 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, PlusSquare, BarChart3, UserCircle, CookingPot } from 'lucide-react';
+import { Home, CookingPot, BarChart3, Lightbulb } from 'lucide-react'; // Added Lightbulb
 import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
 
 const navItems = [
   { href: '/', label: 'Home', icon: Home },
-  { href: '/log-meal', label: 'Log Meal', icon: CookingPot }, // Changed icon to CookingPot
+  { href: '/log-meal', label: 'Log Meal', icon: CookingPot },
   { href: '/reports', label: 'Reports', icon: BarChart3 },
+  { href: '/recommendations', label: 'Tips', icon: Lightbulb }, // New recommendations item
   // { href: '/profile', label: 'Profile', icon: UserCircle }, // Placeholder for profile
 ];
 
@@ -21,12 +21,12 @@ const BottomNav = () => {
     <nav className="fixed bottom-0 left-0 right-0 h-16 bg-card border-t border-border shadow-md md:hidden z-50">
       <div className="flex justify-around items-center h-full max-w-md mx-auto">
         {navItems.map((item) => {
-          const isActive = pathname === item.href;
+          const isActive = pathname === item.href || (item.href === '/recommendations' && pathname.startsWith('/recommendations'));
           return (
             <Link key={item.href} href={item.href} legacyBehavior>
               <a
                 className={cn(
-                  "flex flex-col items-center justify-center text-xs w-1/3 h-full",
+                  "flex flex-col items-center justify-center text-xs w-1/4 h-full", // Adjusted width for 4 items
                   isActive ? "text-primary" : "text-muted-foreground hover:text-primary/80"
                 )}
               >
