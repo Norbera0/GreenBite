@@ -1,4 +1,3 @@
-
 'use server';
 /**
  * @fileOverview Generates personalized feedback for a meal based on its carbon impact.
@@ -21,25 +20,33 @@ const feedbackPrompt = ai.definePrompt({
   name: 'generateMealFeedbackPrompt',
   input: { schema: GenerateMealFeedbackInputSchema },
   output: { schema: GenerateMealFeedbackOutputSchema },
-  prompt: `Analyze the following meal and its carbon footprint:
+  prompt: `You are an AI assistant for EcoPlate, an app helping users understand and reduce their food's carbon footprint.
+Analyze the following meal, its total carbon footprint, and the user's confirmed food items:
+
 Food Items:
 {{#each foodItems}}
 - {{this.name}} (Quantity: {{this.quantity}})
 {{/each}}
 Total CO₂e: {{carbonFootprintKgCO2e}} kg.
 
-First, determine the impact level based on the total CO₂e:
+First, determine the impactLevel based on the total CO₂e:
 - If CO₂e > 5.0 kg, the impactLevel is "High".
 - If CO₂e >= 2.0 kg and CO₂e <= 5.0 kg, the impactLevel is "Medium".
 - If CO₂e < 2.0 kg, the impactLevel is "Low".
 
-Then, based on the determined impactLevel and the specific food items, provide a single, short, friendly, and actionable feedbackMessage (1-2 sentences).
+Based on the determined impactLevel AND the specific food items (especially high-impact ones if present), generate a single, short (1-2 sentences), friendly, empathetic, and actionable 'feedbackMessage'.
+The message should be contextual and helpful, not judgmental. Avoid explicitly stating "Your meal's impact is High/Medium/Low" in the feedback message itself.
+Instead, focus on:
+- For higher impact meals: Gently point out high-impact items if identifiable (e.g., "The beef in this meal contributed significantly to its footprint.") and suggest a specific, actionable alternative for next time.
+- For medium impact meals: Offer a balanced reflection, perhaps acknowledging good choices while suggesting minor improvements or portion adjustments for specific items.
+- For low impact meals: Provide an encouraging affirmation, highlighting what made it a good choice (e.g., "Great choice with the lentils and vegetables! This meal is light on the planet.").
 
-- If impactLevel is "High": Provide a constructive suggestion. Example: "This meal had a high footprint. Try replacing [specific high-impact item like beef] with [a lower-impact alternative like lentils or chicken] next time – your planet will thank you!"
-- If impactLevel is "Medium": Provide a balanced reflection. Example: "Not bad! Some parts like [specific item] were a bit carbon-heavy. Consider smaller portions of meat or more seasonal veggies next time." or "A moderate impact. To lower it further, you could try [suggestion]."
-- If impactLevel is "Low": Provide an encouraging affirmation. Example: "Great job! This meal was light on the planet. Keep up the sustainable choices!" or "Excellent choice! This meal has a low carbon footprint."
+Examples:
+- High CO2e (e.g., Beef Burger, 4.1 kg): "The beef burger made up a large part of this meal's 4.1 kg CO₂e. Next time, a lentil or chicken burger could reduce the impact significantly!"
+- Medium CO2e (e.g., Chicken Stir-fry, 2.5 kg): "A good-sized meal! To make it even more planet-friendly, you could try slightly less chicken or add more seasonal vegetables next time."
+- Low CO2e (e.g., Lentil Soup, 0.6 kg): "Excellent choice! This lentil soup is a delicious and very low-impact meal. Keep up the great work!"
 
-Return the feedbackMessage and the determined impactLevel in the specified JSON format.
+Return the 'feedbackMessage' and the determined 'impactLevel' in the specified JSON format.
 Focus on being helpful and encouraging.
 `,
 });
