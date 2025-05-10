@@ -77,6 +77,6 @@ const estimateMealCarbonFootprintFlow = ai.defineFlow(
 // Make types available for import
 export type { EstimateCarbonFootprintInput as EstimateMealCarbonFootprintInput, EstimateCarbonFootprintOutput as EstimateMealCarbonFootprintOutput };
 
-// Legacy export for estimateCarbonFootprintFromMealPhoto - can be deprecated or adapted
-// For now, let's keep the old one but it should not be used for the new flow.
-export { estimateCarbonFootprintFromMealPhoto, type EstimateCarbonFootprintFromMealPhotoInput, type EstimateCarbonFootprintFromMealPhotoOutput } from '@/ai/flows/legacy-estimate-carbon-footprint';
+// Legacy export for estimateCarbonFootprintFromMealPhoto was removed as it violates "use server" export rules.
+// If the legacy flow is needed, it should be imported directly from '@/ai/flows/legacy-estimate-carbon-footprint'.
+// The types (EstimateCarbonFootprintFromMealPhotoInput, EstimateCarbonFootprintFromMealPhotoOutput) are available from '@/ai/schemas'.
