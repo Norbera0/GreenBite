@@ -146,11 +146,11 @@ const ReviewMealPage: NextPage = () => {
       setMealResult(finalResultForContext); // Update context with all info
       setDetectedMealItems(null); 
 
-      toast({
-        title: "Meal Processed!",
-        description: `CO₂e: ${footprintResult.carbonFootprintKgCO2e.toFixed(2)} kg. View details now.`,
-        // Action removed as navigation is immediate
-      });
+      // Toast is removed here as navigation is immediate to meal-result page
+      // toast({
+      //   title: "Meal Processed!",
+      //   description: `CO₂e: ${footprintResult.carbonFootprintKgCO2e.toFixed(2)} kg. View details now.`,
+      // });
       router.push('/meal-result');
 
     } catch (err) {
@@ -158,7 +158,7 @@ const ReviewMealPage: NextPage = () => {
       const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred.';
       setError(`Failed to process meal: ${errorMessage}`);
       toast({ title: "Processing Failed", description: `Could not process your meal. ${errorMessage}`, variant: "destructive" });
-      if (finalResultForContext && finalResultForContext.carbonFootprintKgCO2e) {
+      if (finalResultForContext && finalResultForContext.carbonFootprintKgCO2e !== undefined) {
         // If footprint was calculated but other AI calls failed, still show basic result
         setMealResult(finalResultForContext);
         router.push('/meal-result');
@@ -293,4 +293,3 @@ const ReviewMealPage: NextPage = () => {
 };
 
 export default ReviewMealPage;
-```
