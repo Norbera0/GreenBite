@@ -65,24 +65,24 @@ const HomePage: NextPage = () => {
         {/* Top Card for Streak and Daily CO2e */}
         <Card className="shadow-lg border-primary/20">
           <CardHeader className="pb-2 pt-4">
-            <CardTitle className="text-lg text-primary text-center sm:text-left">Your Snapshot</CardTitle>
+            <CardTitle className="text-lg text-primary text-center">Your Snapshot</CardTitle>
           </CardHeader>
-          <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 pb-4">
+          <CardContent className="grid grid-cols-2 gap-3 pt-2 pb-4"> {/* Changed to grid-cols-2 for all sizes */}
             {/* Streak Display */}
-            <div className="flex flex-col items-center justify-center p-3 rounded-lg bg-card border border-border shadow-sm">
-              <Flame className={`w-8 h-8 mb-1 ${streakData && streakData.logStreak > 0 ? 'text-orange-500' : 'text-muted-foreground'}`} />
-              <p className="text-xl font-bold text-foreground">
+            <div className="flex flex-col items-center justify-center p-3 rounded-lg bg-card border border-border shadow-sm aspect-[3/2] sm:aspect-auto"> {/* Added aspect ratio for very narrow screens */}
+              <Flame className={`w-7 h-7 sm:w-8 sm:h-8 mb-1 ${streakData && streakData.logStreak > 0 ? 'text-orange-500' : 'text-muted-foreground'}`} />
+              <p className="text-lg sm:text-xl font-bold text-foreground">
                 {streakData ? streakData.logStreak : 0} Day{streakData && streakData.logStreak !== 1 ? 's' : ''}
               </p>
-              <p className="text-xs text-muted-foreground">Logging Streak</p>
+              <p className="text-xs text-muted-foreground text-center">Logging Streak</p>
             </div>
             {/* Daily CO2e Display */}
-            <div className="flex flex-col items-center justify-center p-3 rounded-lg bg-card border border-border shadow-sm">
-              <Leaf className="w-8 h-8 mb-1 text-green-600" />
-              <p className="text-xl font-bold text-foreground">
+            <div className="flex flex-col items-center justify-center p-3 rounded-lg bg-card border border-border shadow-sm aspect-[3/2] sm:aspect-auto"> {/* Added aspect ratio */}
+              <Leaf className="w-7 h-7 sm:w-8 sm:h-8 mb-1 text-green-600" />
+              <p className="text-lg sm:text-xl font-bold text-foreground">
                 {todaysTotalCO2e.toFixed(2)} kg
               </p>
-              <p className="text-xs text-muted-foreground">CO₂e Today</p>
+              <p className="text-xs text-muted-foreground text-center">CO₂e Today</p>
             </div>
           </CardContent>
         </Card>
@@ -180,7 +180,6 @@ const HomePage: NextPage = () => {
           </CardContent>
         </Card>
         
-        {/* Streaks Card removed as its content is now in the top "Your Snapshot" card */}
       </main>
 
        <Link href="/log-meal" passHref>
@@ -197,3 +196,4 @@ const HomePage: NextPage = () => {
 };
 
 export default HomePage;
+
