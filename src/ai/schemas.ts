@@ -1,3 +1,4 @@
+
 // src/ai/schemas.ts
 import { z } from 'genkit';
 
@@ -86,8 +87,7 @@ export type GenerateMealSuggestionOutput = z.infer<typeof GenerateMealSuggestion
  * Can also be used for generating general recommendation tips.
  */
 export const GenerateTipInputSchema = z.object({
-  mealLogsSummary: z.string().describe("A multi-line string summarizing the user's meals over the last 7 days, including food items, quantities, and CO2e values, formatted day by day."),
-  // pastTips: z.array(z.string()).optional().describe("An optional list of previously generated tips to avoid repetition."),
+  mealLogsSummary: z.string().describe("A multi-line string summarizing the user's meals over the last 7 days, including food items, quantities, CO2e values, and meal types (Breakfast, Lunch, Dinner), formatted day by day."),
 });
 
 /**
@@ -118,6 +118,7 @@ export const FoodSwapSchema = z.object({
   suggestedItem: z.string().describe("The lower-impact alternative food item."),
   co2eSavingEstimate: z.string().describe("Estimated CO2e savings, e.g., '15.4 kg CO2e/month' or 'by 70%'."),
   details: z.string().optional().describe("A brief explanation for the suggestion."),
+  tryThis: z.boolean().optional().describe("User's intent to try this swap."), // Added for context state
 });
 
 /**
@@ -189,6 +190,38 @@ export const AskAIChatbotOutputSchema = z.object({
  * TypeScript type inferred from the AskAIChatbotOutputSchema.
  */
 export type AskAIChatbotOutput = z.infer<typeof AskAIChatbotOutputSchema>;
+
+
+// --- Challenge Generation Schemas ---
+
+// Daily Challenge
+export const GenerateDailyChallengeInputSchema = z.object({
+  userHistorySummary: z.string().optional().describe("Optional summary of user's recent activity or preferences to tailor the challenge."),
+  // avoidChallengeTypes: z.array(z.string()).optional().describe("List of challenge types recently completed to encourage variety."),
+});
+export type GenerateDailyChallengeInput = z.infer<typeof GenerateDailyChallengeInputSchema>;
+
+export const GenerateDailyChallengeOutputSchema = z.object({
+  description: z.string().describe("The user-facing description of the daily challenge."),
+  type: z.enum(['log_plant_based', 'co2e_under_today', 'avoid_red_meat_meal', 'log_three_meals', 'log_low_co2e_meal']).describe("The programmatic type of the challenge for internal logic."),
+  targetValue: z.number().optional().describe("Target value for challenges like 'co2e_under_today' (e.g., 2.5 for 2.5kg CO2e) or 'log_low_co2e_meal' (e.g. 0.5 for 0.5kg CO2e)."),
+});
+export type GenerateDailyChallengeOutput = z.infer<typeof GenerateDailyChallengeOutputSchema>;
+
+// Weekly Challenge
+export const GenerateWeeklyChallengeInputSchema = z.object({
+  mealLogsSummary: z.string().describe("Summary of user's meal logs for the past 7-14 days to identify patterns and suggest relevant challenges."),
+  // avoidChallengeTypes: z.array(z.string()).optional().describe("List of weekly challenge types recently completed."),
+});
+export type GenerateWeeklyChallengeInput = z.infer<typeof GenerateWeeklyChallengeInputSchema>;
+
+export const GenerateWeeklyChallengeOutputSchema = z.object({
+  description: z.string().describe("The user-facing description of the weekly challenge."),
+  type: z.enum(['weekly_co2e_under', 'plant_based_meals_count', 'log_days_count']).describe("The programmatic type of the weekly challenge."),
+  targetValue: z.number().describe("Target value for the challenge (e.g., 15 for 15kg CO2e total, 3 for 3 plant-based meals, 5 for logging on 5 days)."),
+});
+export type GenerateWeeklyChallengeOutput = z.infer<typeof GenerateWeeklyChallengeOutputSchema>;
+
 
 // Re-exporting existing weekly tip schemas for clarity, though they are now generalized to GenerateTipInputSchema/OutputSchema
 export { GenerateTipInputSchema as GenerateWeeklyTipInputSchema, GenerateTipOutputSchema as GenerateWeeklyTipOutputSchema};
