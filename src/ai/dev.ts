@@ -10,4 +10,3 @@ import '@/ai/flows/generate-food-swaps.ts';
 import '@/ai/flows/ask-ai-chatbot.ts';
 import '@/ai/flows/generate-daily-challenge.ts'; // New daily challenge flow
 import '@/ai/flows/generate-weekly-challenge.ts'; // New weekly challenge flow
-
