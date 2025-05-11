@@ -136,6 +136,7 @@ const AppContext = createContext<AppContextProps | undefined>(undefined);
 
 const USER_STORAGE_KEY = 'greenBiteUser'; // Updated brand name
 const MEAL_LOGS_STORAGE_KEY = 'greenBiteMealLogs'; // Updated brand name
+const MAX_MEAL_LOGS_STORED = 100; // Limit number of logs in localStorage
 const DETECTED_ITEMS_STORAGE_KEY = 'greenBiteDetectedMealItems'; // For new flow
 const WEEKLY_TIP_STORAGE_KEY_PREFIX = 'greenBiteWeeklyTip_';
 const GENERAL_REC_STORAGE_KEY_PREFIX = 'greenBiteGeneralRec_';
@@ -484,10 +485,19 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     };
 
     setMealLogs(prevLogs => {
-      const allLogs = [logToAdd, ...prevLogs];
-      allLogs.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()); 
-      localStorage.setItem(MEAL_LOGS_STORAGE_KEY, JSON.stringify(allLogs));
-      return allLogs; 
+      let updatedLogs = [logToAdd, ...prevLogs];
+      updatedLogs.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()); 
+      // Limit the number of logs stored
+      if (updatedLogs.length > MAX_MEAL_LOGS_STORED) {
+        updatedLogs = updatedLogs.slice(0, MAX_MEAL_LOGS_STORED);
+      }
+      try {
+        localStorage.setItem(MEAL_LOGS_STORAGE_KEY, JSON.stringify(updatedLogs));
+      } catch (error) {
+        console.error("Error saving meal logs to localStorage (quota likely exceeded):", error);
+        // Potentially notify user or implement more sophisticated cache eviction
+      }
+      return updatedLogs; 
     });
     updateStreakOnMealLog(logToAdd.date);
     updateChallengesOnMealLog(logToAdd);
