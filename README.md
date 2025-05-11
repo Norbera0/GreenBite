@@ -88,12 +88,13 @@ src/
 
 ## 🖼️ Screenshots
 
-- **Home/Dashboard:** ![Home](Screenshots/Home.png)
-- **Food Identifier:** ![Food Identifier](Screenshots/Food%20Identifier.png)
-- **Footprint Result:** ![Footprint Result](Screenshots/Footprint%20Result.png)
-- **Reports:** ![Reports](Screenshots/reports.png)
-- **Recommendations:** ![Recommendations](Screenshots/recomendations.png)
-- **Chatbot:** ![Chatbot](Screenshots/chatbot.png)
+| Home/Dashboard | Food Identifier | Footprint Result |
+|----------------|-----------------|------------------|
+| ![Home](Screenshots/Home.png) | ![Food Identifier](Screenshots/Food%20Identifier.png) | ![Footprint Result](Screenshots/Footprint%20Result.png) |
+
+| Reports | Recommendations | Chatbot |
+|---------|-----------------|---------|
+| ![Reports](Screenshots/reports.png) | ![Recommendations](Screenshots/recomendations.png) | ![Chatbot](Screenshots/chatbot.png) |
 
 ---
 
