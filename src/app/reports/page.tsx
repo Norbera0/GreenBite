@@ -199,8 +199,8 @@ const ReportsPage: NextPage = () => {
   }, [mealLogs, selectedDate, selectedMealType]);
 
   const yAxisDomainMax = useMemo(() => {
-    if (!graphData || graphData.length === 0) return Math.max(5, SOUTH_KOREA_AVG_CO2E + 1); // Ensure SK avg is visible
-    const maxVal = Math.max(...graphData.map(d => d.totalCO2e), SOUTH_KOREA_AVG_CO2E, 0); // Include SK_AVG in max calculation
+    if (!graphData || graphData.length === 0) return Math.max(5, SOUTH_KOREA_AVG_CO2E + 1); 
+    const maxVal = Math.max(...graphData.map(d => d.totalCO2e), SOUTH_KOREA_AVG_CO2E, 0); 
     const roundedMax = Math.ceil(maxVal / 5) * 5; 
     return Math.max(5, roundedMax + (roundedMax > 0 ? 1 : 0) ); 
   }, [graphData]);
@@ -268,7 +268,7 @@ const ReportsPage: NextPage = () => {
 
           {/* Top-Right Panel: Graph: 7-Day Trend */}
           <Card className="shadow-lg">
-             <CardContent className="h-[200px] sm:h-[250px] p-2 pt-4"> 
+             <CardContent className="h-[200px] sm:h-[250px] p-2 pt-4 flex flex-col"> 
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={graphData} margin={{ top: 5, right: 10, left: -25, bottom: 5 }} onClick={handleBarClick}>
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
@@ -283,13 +283,15 @@ const ReportsPage: NextPage = () => {
                   <Line type="monotone" dataKey="totalCO2e" stroke="hsl(var(--chart-2))" strokeWidth={2} dot={{ r: 3, fill: 'hsl(var(--chart-2))' }} activeDot={{ r: 5 }} />
                   <ReferenceLine 
                     y={SOUTH_KOREA_AVG_CO2E} 
-                    label={{ value: `Avg. SK: ${SOUTH_KOREA_AVG_CO2E}kg`, position: 'insideTopRight', fill: 'hsl(var(--muted-foreground))', fontSize: 9, dy: -5, dx: -5 }} 
                     stroke="hsl(var(--muted-foreground))" 
                     strokeDasharray="3 3" 
                     strokeWidth={1.5}
                   />
                 </LineChart>
               </ResponsiveContainer>
+              <p className="text-xs text-muted-foreground text-center pt-1">
+                Avg. South Korea: {SOUTH_KOREA_AVG_CO2E} kg CO₂e/day
+              </p>
             </CardContent>
           </Card>
 
