@@ -1,3 +1,4 @@
+
 "use client";
 
 import type { NextPage } from 'next';
@@ -13,7 +14,7 @@ import { useAppContext } from '@/context/app-context';
 import { estimateMealCarbonFootprint } from '@/ai/flows/estimate-carbon-footprint'; 
 import { generateCarbonEquivalency } from '@/ai/flows/generate-carbon-equivalency';
 import { generateMealFeedback } from '@/ai/flows/generate-meal-feedback';
-import type { FoodItem, AIIdentifiedFoodItem, FinalMealResult, NewMealLogData } from '@/context/app-context'; // Added NewMealLogData
+import type { FoodItem, AIIdentifiedFoodItem, FinalMealResult, NewMealLogData } from '@/context/app-context';
 import { useToast } from "@/hooks/use-toast";
 import { ScrollArea } from '@/components/ui/scroll-area';
 
@@ -101,7 +102,7 @@ const ReviewMealPage: NextPage = () => {
     let finalResultForContext: FinalMealResult | null = null;
 
     try {
-      setProcessingStep('Estimating footprint...'); 
+      setProcessingStep('Calculating Green Score...'); // Updated processing step
       const footprintResult = await estimateMealCarbonFootprint({
         photoDataUri: mealPhoto,
         foodItems: foodItemsForAI,
@@ -112,7 +113,7 @@ const ReviewMealPage: NextPage = () => {
       }
       
       const newLogDetails: NewMealLogData = {
-           photoDataUri: mealPhoto, // Pass photo for current log context
+           photoDataUri: mealPhoto,
            foodItems: foodItemsForAI,
            totalCarbonFootprint: footprintResult.carbonFootprintKgCO2e,
       };
@@ -124,13 +125,13 @@ const ReviewMealPage: NextPage = () => {
 
       finalResultForContext = { ...loggedMealBasicResult }; 
 
-      setProcessingStep('Generating equivalency...');
+      setProcessingStep('Fetching Eco-Facts...'); // Updated processing step
       const equivalencyResult = await generateCarbonEquivalency({
         carbonFootprintKgCO2e: footprintResult.carbonFootprintKgCO2e,
       });
       finalResultForContext.carbonEquivalency = equivalencyResult.equivalency;
 
-      setProcessingStep('Generating feedback...');
+      setProcessingStep('Crafting Your Feedback...'); // Updated processing step
       const feedbackResult = await generateMealFeedback({
         foodItems: foodItemsForAI,
         carbonFootprintKgCO2e: footprintResult.carbonFootprintKgCO2e,
@@ -184,13 +185,13 @@ const ReviewMealPage: NextPage = () => {
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
-      <Header title="Review &amp; Confirm Meal" showBackButton={true} onBackClick={handleGoBack}/>
+      <Header title="Almost There!" showBackButton={true} onBackClick={handleGoBack}/> {/* Updated header title */}
       <main className="flex-grow container mx-auto p-4 flex flex-col items-center">
         <Card className="w-full max-w-lg shadow-lg border-primary/20">
           <CardHeader>
-            <CardTitle className="text-2xl text-center text-primary">Confirm Your Meal Items</CardTitle>
+            <CardTitle className="text-2xl text-center text-primary">Looking Good! Let's Confirm</CardTitle> {/* Updated card title */}
             <CardDescription className="text-center">
-              AI may have detected items from your photo. Review, edit, add, or remove items as needed.
+              Our AI spotted these items. Make any tweaks, then see your meal's impact!
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -203,7 +204,7 @@ const ReviewMealPage: NextPage = () => {
             <Label className="text-md font-semibold text-primary">Food Items &amp; Quantities</Label>
             <ScrollArea className="h-[200px] w-full border p-3 rounded-md bg-card">
               {editableItems.length === 0 && (
-                <p className="text-muted-foreground text-sm text-center py-4">No items detected or added yet. Click "Add Item" below.</p>
+                <p className="text-muted-foreground text-sm text-center py-4">Nothing here yet! Click "Add Item" to get started.</p>
               )}
               {editableItems.map((item, index) => (
                 <div key={item.id} className="flex items-end space-x-2 mb-3 p-2 border-b border-border last:border-b-0">
@@ -233,7 +234,7 @@ const ReviewMealPage: NextPage = () => {
                     variant="ghost"
                     size="icon"
                     onClick={() => handleRemoveItem(item.id)}
-                    disabled={isProcessing || editableItems.length &lt;= 1 &amp;&amp; !item.name &amp;&amp; !item.quantity} 
+                    disabled={isProcessing || editableItems.length <= 1 && !item.name && !item.quantity} 
                     className="text-destructive hover:bg-destructive/10 h-9 w-9"
                     aria-label="Remove item"
                   >
@@ -256,7 +257,7 @@ const ReviewMealPage: NextPage = () => {
             {isProcessing && (
               <div className="flex items-center justify-center text-sm text-primary p-2 bg-primary-light/30 rounded-md">
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {processingStep || 'Processing...'}
+                {processingStep || 'Working our magic...'}
               </div>
             )}
           </CardContent>
@@ -272,7 +273,7 @@ const ReviewMealPage: NextPage = () => {
               ) : (
                 <CheckCircle className="mr-2 h-5 w-5" />
               )}
-              {isProcessing ? processingStep || 'Estimating...' : 'Confirm &amp; View Impact'}
+              {isProcessing ? processingStep || 'Calculating...' : 'Confirm & See My Green Impact!'} {/* Updated button text */}
             </Button>
           </CardFooter>
         </Card>

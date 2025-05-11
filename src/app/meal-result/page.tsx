@@ -7,13 +7,13 @@ import { useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Leaf, Utensils, Home, Sparkles, Info, AlertTriangle, Loader2, Zap, MessageCircle, CheckCircle } from 'lucide-react'; // Added CheckCircle
+import { Leaf, Utensils, Home, Sparkles, Info, AlertTriangle, Loader2, Zap, MessageCircle, CheckCircle } from 'lucide-react'; 
 import Header from '@/components/header';
 import { useAppContext } from '@/context/app-context';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
-import { cn } from '@/lib/utils'; // For conditional styling
+import { cn } from '@/lib/utils'; 
 
 const MealResultPage: NextPage = () => {
   const router = useRouter();
@@ -58,7 +58,7 @@ const MealResultPage: NextPage = () => {
         <Header title="Meal Result" showBackButton={false} />
         <main className="flex-grow container mx-auto p-4 flex flex-col items-center justify-center">
           <AlertTriangle className="h-10 w-10 text-destructive mb-2" />
-          <p className="text-destructive text-center">No meal result data available. Please log a meal first.</p>
+          <p className="text-destructive text-center">No meal result data found. Please log a meal first.</p>
           <Button onClick={() => router.push('/log-meal')} className="mt-4">Log Meal</Button>
         </main>
       </div>
@@ -75,31 +75,30 @@ const MealResultPage: NextPage = () => {
 
   const getImpactAlertVariant = () => {
     if (impactLevel === 'High') return 'destructive';
-    if (impactLevel === 'Medium') return 'default'; // Or a custom 'warning' variant if defined
-    if (impactLevel === 'Low') return 'default'; // Or a custom 'success' variant if defined
+    if (impactLevel === 'Medium') return 'default'; 
+    if (impactLevel === 'Low') return 'default'; 
     return 'default';
   };
   
   const getImpactAlertIcon = () => {
     if (impactLevel === 'High') return <AlertTriangle className="h-5 w-5 text-destructive" />;
-    if (impactLevel === 'Medium') return <Info className="h-5 w-5 text-primary" />; // Using primary for medium
-    if (impactLevel === 'Low') return <CheckCircle className="h-5 w-5 text-green-500" />; // CheckCircle for low impact
+    if (impactLevel === 'Medium') return <Info className="h-5 w-5 text-primary" />; 
+    if (impactLevel === 'Low') return <CheckCircle className="h-5 w-5 text-green-500" />; 
     return <Sparkles className="h-5 w-5 text-accent" />;
   };
 
-  // Helper for styling impact alert based on level
   const impactAlertClasses = cn(
     "border",
     impactLevel === 'High' ? "bg-destructive/10 border-destructive/30 text-destructive" :
     impactLevel === 'Medium' ? "bg-primary/10 border-primary/30 text-primary" :
     impactLevel === 'Low' ? "bg-green-500/10 border-green-500/30 text-green-700" :
-    "bg-accent/10 border-accent/30" // Default if no level
+    "bg-accent/10 border-accent/30" 
   );
 
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
-      <Header title="Your Meal's Impact" showBackButton={false}/>
+      <Header title="Your Meal's Green Impact!" showBackButton={false}/> {/* Updated header title */}
       <main className="flex-grow container mx-auto p-4 flex flex-col items-center">
         <Card className="w-full max-w-lg shadow-lg mb-6 border-primary/20">
           <CardHeader>
@@ -112,14 +111,14 @@ const MealResultPage: NextPage = () => {
                 </div>
               )}
             </div>
-            <CardTitle className="text-2xl text-center text-primary">Meal Carbon Footprint</CardTitle>
+            <CardTitle className="text-2xl text-center text-primary">Your Meal's Eco-Score</CardTitle> {/* Updated card title */}
             <CardDescription className="text-center">
-              Estimated CO₂e for your logged meal based on confirmed items.
+              Here's the scoop on your meal's carbon footprint and some friendly feedback!
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="text-center p-4 bg-primary/10 rounded-lg border border-primary/20">
-              <p className="text-sm font-medium text-primary mb-1">Total Estimated Footprint</p>
+              <p className="text-sm font-medium text-primary mb-1">Total Green Impact</p> {/* Updated text */}
               <p className="text-3xl font-bold text-primary">
                 {carbonFootprintKgCO2e.toFixed(2)} kg CO₂e
               </p>
@@ -128,7 +127,7 @@ const MealResultPage: NextPage = () => {
             {carbonEquivalency && (
               <Alert variant="default" className="bg-secondary/50 border-border">
                 <Zap className="h-5 w-5 text-primary" />
-                <AlertTitle className="text-primary font-semibold">Did You Know?</AlertTitle>
+                <AlertTitle className="text-primary font-semibold">Eco Fact!</AlertTitle> {/* Updated title */}
                 <AlertDescription className="text-foreground/80">
                   {carbonEquivalency}
                 </AlertDescription>
@@ -147,7 +146,7 @@ const MealResultPage: NextPage = () => {
 
 
             <div>
-              <h3 className="text-lg font-semibold mb-2 flex items-center"><Leaf className="w-4 h-4 mr-2 text-primary" />Confirmed Item Breakdown</h3>
+              <h3 className="text-lg font-semibold mb-2 flex items-center"><Leaf className="w-4 h-4 mr-2 text-primary" />Your Meal Items</h3> {/* Updated text */}
               <ScrollArea className="h-[150px] w-full border rounded-md">
                 <Table>
                   <TableHeader>

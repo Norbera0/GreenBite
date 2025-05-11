@@ -1,3 +1,4 @@
+
 "use client";
 
 import type { NextPage } from 'next';
@@ -32,10 +33,10 @@ const LoginPage: NextPage = () => {
       <Card className="w-full max-w-sm shadow-xl border-primary/20">
          <CardHeader className="text-center">
            <div className="flex justify-center mb-4">
-              <Leaf size={48} className="text-primary" />
+              <Leaf size={64} className="text-primary" /> {/* Increased icon size */}
            </div>
-          <CardTitle className="text-2xl font-semibold text-primary">Welcome to EcoPlate</CardTitle>
-          <CardDescription>Log in to track your meal's carbon footprint.</CardDescription>
+          <CardTitle className="text-2xl font-semibold text-primary">Welcome to GreenBite!</CardTitle> {/* Updated title */}
+          <CardDescription>Log in to start your green eating journey with GreenBite!</CardDescription> {/* Updated description */}
           <p className="text-xs text-muted-foreground mt-2">(Demo Login: No password required)</p>
         </CardHeader>
         <CardContent>
@@ -70,7 +71,7 @@ const LoginPage: NextPage = () => {
           </form>
         </CardContent>
          <CardFooter className="text-center text-xs text-muted-foreground">
-           <p>This simple login is for identification purposes in this demo.</p>
+           <p>Ready to make a difference? Let's log in! (Demo: No password needed)</p> {/* Updated footer text */}
         </CardFooter>
       </Card>
     </div>

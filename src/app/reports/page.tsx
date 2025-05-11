@@ -85,7 +85,7 @@ const ReportsPage: NextPage = () => {
   };
 
   const handleNextDates = () => {
-    setDateScrollerOffset(prev => Math.min(allScrollableDates.length - VISIBLE_DATES_IN_SCROLLER, prev + 1));
+    setDateScrollerOffset(prev => Math.min(allScrollableDates.length - VISIBLE_DATES_IN_SCROLLER, prev - 1));
   };
   
   const currentGraphWeekStart = useMemo(() => startOfWeek(todayDateObj, { weekStartsOn: 1 }), [todayDateObj]); 
@@ -223,14 +223,14 @@ const ReportsPage: NextPage = () => {
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
-       <Header title="Reports" /> 
+       <Header title="Your Green Progress" /> {/* Updated header title */}
       <main className="flex-grow container mx-auto px-2 py-4 sm:px-4 sm:py-6 space-y-4 sm:space-y-6">
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
           {/* Top-Left Panel: CO2e Stats */}
           <Card className="bg-primary-light shadow-lg border-primary/20 overflow-hidden">
             <CardContent className="p-3 flex flex-row"> 
-              <div className="flex-1 text-center pr-2 sm:pr-3 py-2 border-r border-primary/30 flex flex-col justify-center items-center"> 
+            <div className="flex-1 text-center pr-2 sm:pr-3 py-2 border-r border-primary/30 flex flex-col justify-center items-center"> 
                 <p className="text-xs font-bold uppercase text-gray-600 tracking-wider mb-1">AS OF TODAY</p>
                 <p className="text-3xl sm:text-4xl font-bold text-primary my-1">{todaysTotalCO2e.toFixed(1)}</p>
                 <p className="text-xs text-gray-500">kg CO₂e</p>
@@ -298,7 +298,7 @@ const ReportsPage: NextPage = () => {
           {/* Bottom-Left Panel: Weekly Tip */}
            <Card className="shadow-lg">
             <CardContent className="p-4">
-              <h3 className="text-md font-semibold text-primary mb-2 flex items-center"><Leaf className="w-4 h-4 mr-2 text-primary" /> Weekly Tip</h3>
+              <h3 className="text-md font-semibold text-primary mb-2 flex items-center"><Leaf className="w-4 h-4 mr-2 text-primary" /> 🌱 Your Weekly Growth Tip</h3> {/* Updated title */}
               {isLoadingWeeklyTip ? (
                 <div className="flex items-center justify-center h-[100px]">
                   <Loader2 className="animate-spin h-6 w-6 text-primary" />
@@ -306,15 +306,15 @@ const ReportsPage: NextPage = () => {
               ) : weeklyTip ? (
                 <p className="text-sm text-foreground leading-relaxed">{weeklyTip}</p>
               ) : (
-                <p className="text-sm text-muted-foreground">Log meals to get personalized weekly tips!</p>
+                <p className="text-sm text-muted-foreground">Log meals to get personalized weekly tips and grow greener!</p>
               )}
             </CardContent>
           </Card>
 
-          {/* Bottom-Right Panel: Daily Meal Logs (Placeholder or Future Content) */}
+          {/* Bottom-Right Panel: Daily Meal Logs */}
           <Card className="shadow-lg">
             <CardContent className="p-4">
-               <h3 className="text-md font-semibold text-primary mb-2 flex items-center"><Utensils className="w-4 h-4 mr-2 text-primary" /> Meals for {format(selectedDate, 'MMM d, EEE')}</h3>
+               <h3 className="text-md font-semibold text-primary mb-2 flex items-center"><Utensils className="w-4 h-4 mr-2 text-primary" /> 🍽️ Meals on {format(selectedDate, 'MMM d, EEE')}</h3> {/* Updated title */}
                {isLoading ? (
                  <div className="h-[100px] flex items-center justify-center">
                     <Loader2 className="animate-spin h-6 w-6 text-primary" />
@@ -352,7 +352,7 @@ const ReportsPage: NextPage = () => {
                     </ul>
                   </ScrollArea>
                 ) : (
-                  <p className="text-sm text-muted-foreground text-center py-4">No meals logged for this day and meal type.</p>
+                  <p className="text-sm text-muted-foreground text-center py-4">No meals logged for this day and meal type. Time to log something yummy!</p>
                 )}
             </CardContent>
           </Card>
@@ -477,5 +477,3 @@ const ReportsPage: NextPage = () => {
 };
 
 export default ReportsPage;
-
-    

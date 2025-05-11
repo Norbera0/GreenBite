@@ -10,6 +10,9 @@ export default {
   ],
   theme: {
   	extend: {
+      fontFamily: { // Added fontFamily to use Open Sans
+        sans: ['var(--font-open-sans)', 'sans-serif'],
+      },
   		colors: {
   			background: 'hsl(var(--background))',
   			foreground: 'hsl(var(--foreground))',
@@ -24,7 +27,7 @@ export default {
   			primary: {
   				DEFAULT: 'hsl(var(--primary))',
   				foreground: 'hsl(var(--primary-foreground))',
-          light: 'hsl(var(--primary-light))' // Added primary-light
+          light: 'hsl(var(--primary-light))' 
   			},
   			secondary: {
   				DEFAULT: 'hsl(var(--secondary))',
@@ -52,7 +55,7 @@ export default {
   				'4': 'hsl(var(--chart-4))',
   				'5': 'hsl(var(--chart-5))'
   			},
-  			sidebar: { // Kept for potential future use, though app is mobile-first
+  			sidebar: { 
   				DEFAULT: 'hsl(var(--sidebar-background))',
   				foreground: 'hsl(var(--sidebar-foreground))',
   				primary: 'hsl(var(--sidebar-primary))',

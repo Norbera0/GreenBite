@@ -18,7 +18,7 @@ interface HeaderProps {
 }
 
 const Header: React.FC<HeaderProps> = ({ 
-  title = "EcoPlate", 
+  title = "GreenBite", // Changed default title
   showBackButton: manualShowBackButton, 
   showTitle = true,
   actionIcon,
@@ -46,7 +46,7 @@ const Header: React.FC<HeaderProps> = ({
   };
 
   const shouldShowBackButton = manualShowBackButton ?? canGoBack;
-  const isHomeTitle = title === "Home";
+  const isHomeTitle = title === "GreenBite Home" || title === "GreenBite"; // Adjusted for new default
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -58,7 +58,7 @@ const Header: React.FC<HeaderProps> = ({
               <ArrowLeft className="h-5 w-5" />
             </Button>
           )}
-          {!shouldShowBackButton && !isHomeTitle && ( // Show Leaf logo if not back button and not "Home" title (which will be centered)
+          {!shouldShowBackButton && !isHomeTitle && ( 
              <Link href="/" className="flex items-center gap-2" aria-label="Go to homepage">
                <Leaf className="h-6 w-6 text-primary" />
              </Link>
@@ -94,4 +94,3 @@ const Header: React.FC<HeaderProps> = ({
 };
 
 export default Header;
-
