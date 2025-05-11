@@ -1,4 +1,3 @@
-
 "use client";
 
 import type { NextPage } from 'next';
@@ -12,17 +11,14 @@ import { Loader2, CheckCircle, AlertTriangle, PlusCircle, Trash2, Utensils } fro
 import Header from '@/components/header';
 import { useAppContext } from '@/context/app-context';
 import { estimateMealCarbonFootprint } from '@/ai/flows/estimate-carbon-footprint'; 
-// import { generateMealSuggestion } from '@/ai/flows/generate-meal-suggestion'; // Replaced by generateMealFeedback
 import { generateCarbonEquivalency } from '@/ai/flows/generate-carbon-equivalency';
 import { generateMealFeedback } from '@/ai/flows/generate-meal-feedback';
-import type { FoodItem, AIIdentifiedFoodItem, FinalMealResult } from '@/context/app-context';
+import type { FoodItem, AIIdentifiedFoodItem, FinalMealResult, NewMealLogData } from '@/context/app-context'; // Added NewMealLogData
 import { useToast } from "@/hooks/use-toast";
 import { ScrollArea } from '@/components/ui/scroll-area';
 
-// const SUGGESTION_THRESHOLD_KG_CO2E = 2.0; // This logic is now handled by generateMealFeedback
-
 interface EditableFoodItem extends FoodItem {
-  id: string; // For React key and local manipulation
+  id: string; 
 }
 
 const ReviewMealPage: NextPage = () => {
@@ -114,20 +110,19 @@ const ReviewMealPage: NextPage = () => {
       if (!user?.email) {
           throw new Error("User session not found. Please log in again.");
       }
-
-      // Add meal log to context (and localStorage)
-      // This addMealLog now returns the basic FinalMealResult without AI extras yet
-      const loggedMealBasicResult = await addMealLog({ 
-           photoDataUri: mealPhoto,
+      
+      const newLogDetails: NewMealLogData = {
+           photoDataUri: mealPhoto, // Pass photo for current log context
            foodItems: foodItemsForAI,
            totalCarbonFootprint: footprintResult.carbonFootprintKgCO2e,
-      });
+      };
+      const loggedMealBasicResult = await addMealLog(newLogDetails);
 
       if (!loggedMealBasicResult) {
         throw new Error("Failed to log meal before fetching additional AI details.");
       }
 
-      finalResultForContext = { ...loggedMealBasicResult }; // Start with basic result
+      finalResultForContext = { ...loggedMealBasicResult }; 
 
       setProcessingStep('Generating equivalency...');
       const equivalencyResult = await generateCarbonEquivalency({
@@ -143,14 +138,9 @@ const ReviewMealPage: NextPage = () => {
       finalResultForContext.mealFeedbackMessage = feedbackResult.feedbackMessage;
       finalResultForContext.impactLevel = feedbackResult.impactLevel;
       
-      setMealResult(finalResultForContext); // Update context with all info
+      setMealResult(finalResultForContext); 
       setDetectedMealItems(null); 
 
-      // Toast is removed here as navigation is immediate to meal-result page
-      // toast({
-      //   title: "Meal Processed!",
-      //   description: `CO₂e: ${footprintResult.carbonFootprintKgCO2e.toFixed(2)} kg. View details now.`,
-      // });
       router.push('/meal-result');
 
     } catch (err) {
@@ -159,7 +149,6 @@ const ReviewMealPage: NextPage = () => {
       setError(`Failed to process meal: ${errorMessage}`);
       toast({ title: "Processing Failed", description: `Could not process your meal. ${errorMessage}`, variant: "destructive" });
       if (finalResultForContext && finalResultForContext.carbonFootprintKgCO2e !== undefined) {
-        // If footprint was calculated but other AI calls failed, still show basic result
         setMealResult(finalResultForContext);
         router.push('/meal-result');
       }
@@ -195,7 +184,7 @@ const ReviewMealPage: NextPage = () => {
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
-      <Header title="Review & Confirm Meal" showBackButton={true} onBackClick={handleGoBack}/>
+      <Header title="Review &amp; Confirm Meal" showBackButton={true} onBackClick={handleGoBack}/>
       <main className="flex-grow container mx-auto p-4 flex flex-col items-center">
         <Card className="w-full max-w-lg shadow-lg border-primary/20">
           <CardHeader>
@@ -211,7 +200,7 @@ const ReviewMealPage: NextPage = () => {
               </div>
             )}
 
-            <Label className="text-md font-semibold text-primary">Food Items & Quantities</Label>
+            <Label className="text-md font-semibold text-primary">Food Items &amp; Quantities</Label>
             <ScrollArea className="h-[200px] w-full border p-3 rounded-md bg-card">
               {editableItems.length === 0 && (
                 <p className="text-muted-foreground text-sm text-center py-4">No items detected or added yet. Click "Add Item" below.</p>
@@ -244,7 +233,7 @@ const ReviewMealPage: NextPage = () => {
                     variant="ghost"
                     size="icon"
                     onClick={() => handleRemoveItem(item.id)}
-                    disabled={isProcessing || editableItems.length <= 1 && !item.name && !item.quantity} 
+                    disabled={isProcessing || editableItems.length &lt;= 1 &amp;&amp; !item.name &amp;&amp; !item.quantity} 
                     className="text-destructive hover:bg-destructive/10 h-9 w-9"
                     aria-label="Remove item"
                   >
@@ -283,7 +272,7 @@ const ReviewMealPage: NextPage = () => {
               ) : (
                 <CheckCircle className="mr-2 h-5 w-5" />
               )}
-              {isProcessing ? processingStep || 'Estimating...' : 'Confirm & View Impact'}
+              {isProcessing ? processingStep || 'Estimating...' : 'Confirm &amp; View Impact'}
             </Button>
           </CardFooter>
         </Card>

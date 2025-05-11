@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useMemo } from 'react';
@@ -19,20 +18,27 @@ export interface MealLog {
   userEmail: string;
   date: string; // YYYY-MM-DD (local date of the meal)
   timestamp: string; // ISO string for precise time (UTC)
-  photoDataUri: string;
+  photoDataUri?: string; // Made optional, will not be stored in localStorage for long-term logs
   foodItems: FoodItem[]; // User-confirmed food items
   totalCarbonFootprint: number;
   mealType?: 'Breakfast' | 'Lunch' | 'Dinner';
 }
 
+// Interface for the data passed when adding a new meal log
+export interface NewMealLogData {
+  photoDataUri?: string; // Photo of the meal currently being logged
+  foodItems: FoodItem[];
+  totalCarbonFootprint: number;
+}
+
+
 // This structure will be stored in mealResult in context for the meal-result page
 export interface FinalMealResult {
   foodItems: FoodItem[]; // User-confirmed items
   carbonFootprintKgCO2e: number;
-  // mealSuggestion is now part of mealFeedbackMessage content
-  carbonEquivalency?: string; // New: for equivalency line
-  mealFeedbackMessage?: string; // New: AI generated feedback
-  impactLevel?: MealImpactLevel; // New: High, Medium, Low
+  carbonEquivalency?: string; 
+  mealFeedbackMessage?: string; 
+  impactLevel?: MealImpactLevel; 
 }
 
 
@@ -98,14 +104,14 @@ interface AppContextProps {
   mealPhoto: string | null;
   setMealPhoto: (photoDataUri: string | null) => void;
   
-  detectedMealItems: AIIdentifiedFoodItem[] | null; // For items AI detected from photo
+  detectedMealItems: AIIdentifiedFoodItem[] | null; 
   setDetectedMealItems: (items: AIIdentifiedFoodItem[] | null) => void;
 
   mealResult: FinalMealResult | null; 
-  setMealResult: (result: FinalMealResult | null) => void; // Updated to take full FinalMealResult
+  setMealResult: (result: FinalMealResult | null) => void; 
   
   mealLogs: MealLog[];
-  addMealLog: (log: Omit<MealLog, 'date' | 'timestamp' | 'userEmail' | 'mealType'>) => Promise<FinalMealResult | null>; // Returns full result for review page
+  addMealLog: (logData: NewMealLogData) => Promise<FinalMealResult | null>; 
   isLoading: boolean;
 
   weeklyTip: string | null;
@@ -134,10 +140,10 @@ interface AppContextProps {
 
 const AppContext = createContext<AppContextProps | undefined>(undefined);
 
-const USER_STORAGE_KEY = 'greenBiteUser'; // Updated brand name
-const MEAL_LOGS_STORAGE_KEY = 'greenBiteMealLogs'; // Updated brand name
-const MAX_MEAL_LOGS_STORED = 100; // Limit number of logs in localStorage
-const DETECTED_ITEMS_STORAGE_KEY = 'greenBiteDetectedMealItems'; // For new flow
+const USER_STORAGE_KEY = 'greenBiteUser'; 
+const MEAL_LOGS_STORAGE_KEY = 'greenBiteMealLogs'; 
+const MAX_MEAL_LOGS_STORED = 50; // Reduced max logs to further help with quota
+const DETECTED_ITEMS_STORAGE_KEY = 'greenBiteDetectedMealItems'; 
 const WEEKLY_TIP_STORAGE_KEY_PREFIX = 'greenBiteWeeklyTip_';
 const GENERAL_REC_STORAGE_KEY_PREFIX = 'greenBiteGeneralRec_';
 const FOOD_SWAPS_STORAGE_KEY_PREFIX = 'greenBiteFoodSwaps_';
@@ -152,7 +158,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [mealPhoto, setMealPhotoState] = useState<string | null>(null);
   const [detectedMealItems, setDetectedMealItemsState] = useState<AIIdentifiedFoodItem[] | null>(null);
   const [mealResult, setMealResultState] = useState<FinalMealResult | null>(null);
-  // mealSuggestion is now part of mealResult.mealFeedbackMessage
 
   const [mealLogs, setMealLogs] = useState<MealLog[]>([]);
   const [isLoading, setIsLoading] = useState(true); 
@@ -204,7 +209,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         if (storedStreak) setStreakData(JSON.parse(storedStreak));
         else setStreakData({ logStreak: 0, lastLogDate: null });
 
-        // Load detected items if any (might be from an interrupted session)
         const storedDetectedItems = localStorage.getItem(DETECTED_ITEMS_STORAGE_KEY);
         if(storedDetectedItems) setDetectedMealItemsState(JSON.parse(storedDetectedItems));
 
@@ -212,9 +216,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
       const storedLogs = localStorage.getItem(MEAL_LOGS_STORAGE_KEY);
       if (storedLogs) {
-        const logs: MealLog[] = JSON.parse(storedLogs);
-        const migratedLogs = logs.map(log => ({
-          ...log,
+        // Logs from storage will not have photoDataUri
+        const logsFromStorage: Omit<MealLog, 'photoDataUri'>[] = JSON.parse(storedLogs);
+        const migratedLogs: MealLog[] = logsFromStorage.map(log => ({
+          ...log, // Spread to ensure all fields are present, photoDataUri will be undefined
           date: log.date || format(parseISO(log.timestamp), 'yyyy-MM-dd'),
           mealType: log.mealType || getMealType(log.timestamp)
         })).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
@@ -310,7 +315,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         } else if (diffDays > 1) {
           newStreakCount = 1; 
         } else if (diffDays === 0) {
-          // If logging multiple times on the same day, streak doesn't increase unless it's the first log of a new streak
           newStreakCount = newStreakCount === 0 ? 1 : newStreakCount;
         }
       } else {
@@ -328,19 +332,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     if (dailyChallenge && dailyChallenge.date === mealLog.date && !dailyChallenge.isCompleted) {
       let dailyCompleted = false;
-      // Get current day's logs for accurate checks, including the one just added
       const todaysLogsForChallenge = [...currentUserMealLogs, mealLog].filter(log => log.date === dailyChallenge.date);
-
 
       switch (dailyChallenge.type) {
         case 'log_plant_based':
           if (mealLog.totalCarbonFootprint < (dailyChallenge.targetValue || 0.7)) dailyCompleted = true;
           break;
         case 'co2e_under_today':
-          // This needs to be re-evaluated after *all* logs for the day. Handled by useEffect.
           break;
         case 'avoid_red_meat_meal':
-          const redMeatKeywords = ['beef', 'lamb', 'steak', 'pork', 'bacon', 'sausage']; // Add more as needed
+          const redMeatKeywords = ['beef', 'lamb', 'steak', 'pork', 'bacon', 'sausage']; 
           const containsRedMeat = mealLog.foodItems.some(item => redMeatKeywords.some(keyword => item.name.toLowerCase().includes(keyword)));
           if (!containsRedMeat) dailyCompleted = true;
           break;
@@ -398,7 +399,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setWeeklyTip(null); 
     setGeneralRecommendation(null);
     setFoodSwaps([]);
-    setDetectedMealItemsState(null); // Clear detected items on login
+    setDetectedMealItemsState(null); 
 
     const storedChat = localStorage.getItem(`${CHAT_MESSAGES_STORAGE_KEY_PREFIX}${email}`);
     setChatMessages(storedChat ? JSON.parse(storedChat) : []);
@@ -421,7 +422,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setUser(null);
     setMealPhotoState(null);
     setMealResultState(null);
-    // setMealSuggestionState(null); // No longer separate state
     setWeeklyTip(null);
     setGeneralRecommendation(null);
     setFoodSwaps([]);
@@ -430,7 +430,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setWeeklyChallenge(null);
     setStreakData({ logStreak: 0, lastLogDate: null });
     setDetectedMealItemsState(null);
-
 
     localStorage.removeItem(USER_STORAGE_KEY);
     localStorage.removeItem(DETECTED_ITEMS_STORAGE_KEY);
@@ -448,7 +447,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const setMealPhoto = useCallback((photoDataUri: string | null) => {
     setMealPhotoState(photoDataUri);
-    if(photoDataUri === null) { // Clear detected items if photo is cleared
+    if(photoDataUri === null) { 
       setDetectedMealItemsState(null);
       localStorage.removeItem(DETECTED_ITEMS_STORAGE_KEY);
     }
@@ -465,50 +464,58 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const setMealResult = useCallback((result: FinalMealResult | null) => {
     setMealResultState(result);
-    // Clear detected items after meal result is set (they've been processed)
     setDetectedMealItemsState(null);
     localStorage.removeItem(DETECTED_ITEMS_STORAGE_KEY);
   }, []);
 
-  const addMealLog = useCallback(async (newLogData: Omit<MealLog, 'date' | 'timestamp' | 'userEmail' | 'mealType'>): Promise<FinalMealResult | null> => {
+  const addMealLog = useCallback(async (newLogData: NewMealLogData): Promise<FinalMealResult | null> => {
     if (!user) return null;
     const currentDate = new Date();
     const timestamp = currentDate.toISOString();
     const mealType = getMealType(timestamp);
 
-    const logToAdd: MealLog = {
-      ...newLogData,
+    // Log entry for React state (can include photoDataUri for the current session if needed by UI)
+    const logForState: MealLog = {
       userEmail: user.email,
-      date: format(currentDate, 'yyyy-MM-dd'), 
+      date: format(currentDate, 'yyyy-MM-dd'),
       timestamp: timestamp,
+      photoDataUri: newLogData.photoDataUri, // Included for state
+      foodItems: newLogData.foodItems,
+      totalCarbonFootprint: newLogData.totalCarbonFootprint,
       mealType: mealType,
     };
-
+    
     setMealLogs(prevLogs => {
-      let updatedLogs = [logToAdd, ...prevLogs];
-      updatedLogs.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()); 
-      // Limit the number of logs stored
-      if (updatedLogs.length > MAX_MEAL_LOGS_STORED) {
-        updatedLogs = updatedLogs.slice(0, MAX_MEAL_LOGS_STORED);
+      let logsForStateProcessing = [logForState, ...prevLogs];
+      logsForStateProcessing.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+      
+      if (logsForStateProcessing.length > MAX_MEAL_LOGS_STORED) {
+        logsForStateProcessing = logsForStateProcessing.slice(0, MAX_MEAL_LOGS_STORED);
       }
+      
+      // Prepare for localStorage: strip photoDataUri from all logs
+      const logsForPersistentStorage = logsForStateProcessing.map(log => {
+        const { photoDataUri, ...rest } = log; // Destructure to remove photoDataUri
+        return rest; // This object no longer has photoDataUri field
+      });
+      
       try {
-        localStorage.setItem(MEAL_LOGS_STORAGE_KEY, JSON.stringify(updatedLogs));
+        localStorage.setItem(MEAL_LOGS_STORAGE_KEY, JSON.stringify(logsForPersistentStorage));
       } catch (error) {
         console.error("Error saving meal logs to localStorage (quota likely exceeded):", error);
-        // Potentially notify user or implement more sophisticated cache eviction
       }
-      return updatedLogs; 
+      return logsForStateProcessing; 
     });
-    updateStreakOnMealLog(logToAdd.date);
-    updateChallengesOnMealLog(logToAdd);
+
+    updateStreakOnMealLog(logForState.date);
+    updateChallengesOnMealLog(logForState);
     
-    // Construct and return the FinalMealResult structure (without AI feedback yet, that's handled in review-meal)
     return {
       foodItems: newLogData.foodItems,
       carbonFootprintKgCO2e: newLogData.totalCarbonFootprint,
-      // equivalency and feedback will be added by review-meal page after AI calls
     };
   }, [user, updateStreakOnMealLog, updateChallengesOnMealLog]);
+
 
   useEffect(() => {
     if (!user || !dailyChallenge || dailyChallenge.type !== 'co2e_under_today' || dailyChallenge.isCompleted) {
@@ -517,7 +524,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const todaysLogs = currentUserMealLogs.filter(log => log.date === dailyChallenge.date);
     const totalCO2eToday = todaysLogs.reduce((sum, log) => sum + log.totalCarbonFootprint, 0);
 
-    if (totalCO2eToday <= (dailyChallenge.targetValue || 2.5) && todaysLogs.length > 0) { // Ensure at least one log for completion
+    if (totalCO2eToday <= (dailyChallenge.targetValue || 2.5) && todaysLogs.length > 0) { 
       const updatedDailyChallenge = { ...dailyChallenge, isCompleted: true };
       setDailyChallenge(updatedDailyChallenge);
       localStorage.setItem(`${DAILY_CHALLENGE_STORAGE_KEY_PREFIX}${user.email}`, JSON.stringify(updatedDailyChallenge));
@@ -526,7 +533,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
 
    useEffect(() => {
-    if (!user || !weeklyChallenge || weeklyChallenge.isCompleted) { // Don't re-evaluate if already completed
+    if (!user || !weeklyChallenge || weeklyChallenge.isCompleted) { 
       return;
     }
     const logsThisWeek = currentUserMealLogs.filter(log => log.date >= weeklyChallenge.startDate && log.date <= weeklyChallenge.endDate);
@@ -536,7 +543,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     switch (weeklyChallenge.type) {
         case 'weekly_co2e_under':
             newCurrentValue = logsThisWeek.reduce((sum, log) => sum + log.totalCarbonFootprint, 0);
-            isNowCompleted = newCurrentValue <= weeklyChallenge.targetValue && logsThisWeek.length > 0; // Ensure some activity for completion
+            isNowCompleted = newCurrentValue <= weeklyChallenge.targetValue && logsThisWeek.length > 0; 
             break;
         case 'plant_based_meals_count':
             newCurrentValue = logsThisWeek.filter(log => log.totalCarbonFootprint < 0.7).length;
@@ -549,7 +556,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             break;
     }
     
-    // Only update if currentValue or completion status actually changed
     if (newCurrentValue !== weeklyChallenge.currentValue || isNowCompleted !== weeklyChallenge.isCompleted) {
         const updatedWkChallenge = {
             ...weeklyChallenge,
@@ -568,10 +574,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     
     const recentLogs = logsToSummarize.filter(log => {
         try {
-            const logDateObj = parseISO(log.date); // Ensure log.date is valid ISO
+            const logDateObj = parseISO(log.date); 
             return logDateObj >= sevenDaysAgo && logDateObj <= today;
         } catch (e) {
-            // console.warn("Skipping log with invalid date for summary:", log.date, log);
             return false;
         }
     });
@@ -580,7 +585,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     const logsByDay: { [key: string]: MealLog[] } = {};
     recentLogs.forEach(log => {
-        const dayKey = log.date; // This should be 'YYYY-MM-DD'
+        const dayKey = log.date; 
         if (!logsByDay[dayKey]) {
             logsByDay[dayKey] = [];
         }
@@ -588,7 +593,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     });
 
     return Object.entries(logsByDay)
-      .sort(([dateA], [dateB]) => parseISO(dateA).getTime() - parseISO(dateB).getTime()) // Sort by date
+      .sort(([dateA], [dateB]) => parseISO(dateA).getTime() - parseISO(dateB).getTime()) 
       .map(([date, logsForDay], index) => {
         const dayOfWeek = format(parseISO(date), 'EEEE (MMM d)');
         const mealsString = logsForDay.map(log =>
@@ -599,8 +604,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }, []);
 
   const fetchWeeklyTip = useCallback(async (forceRefresh = false) => {
-    if (!user) { // Removed currentUserMealLogs.length === 0 check, AI can handle no logs
-      setWeeklyTip(null); // No tip if no user
+    if (!user) { 
+      setWeeklyTip(null); 
       return;
     }
     setIsLoadingWeeklyTip(true);
@@ -611,7 +616,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         if (cachedDataString) {
             try {
                 const cachedData: CachedWeeklyTip = JSON.parse(cachedDataString);
-                // Check if tip is from the current day (or less than 24 hours old for simplicity)
                 if (Date.now() - cachedData.timestamp < 24 * 60 * 60 * 1000 && cachedData.tip) {
                     setWeeklyTip(cachedData.tip);
                     setIsLoadingWeeklyTip(false);
@@ -622,7 +626,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
     
     const mealLogsSummary = getMealLogsSummaryForAI(currentUserMealLogs);
-    // AI can handle "No meals logged" and give generic advice or an encouragement to log
     try {
       const input: GenerateTipInput = { mealLogsSummary };
       const result = await generateWeeklyTip(input);
@@ -801,5 +804,4 @@ export const useAppContext = (): AppContextProps => {
   return context;
 };
 
-// Exporting FoodItem for use in other components if not already globally available via schemas
 export type { FoodItem, AIIdentifiedFoodItem };
