@@ -1,4 +1,3 @@
-
 "use client";
 
 import type { NextPage } from 'next';
@@ -14,7 +13,7 @@ import { Label } from '@/components/ui/label';
 import Header from '@/components/header';
 import { useAppContext } from '@/context/app-context';
 import type { FoodSwap, ChatMessage } from '@/context/app-context'; 
-import { Lightbulb, RefreshCcw, Sparkles, Bot, Send, Info, Trash2, ChevronRight, ChevronLeft } from 'lucide-react';
+import { Lightbulb, RefreshCcw, Sparkles, Bot, Send, Info, Trash2, ChevronRight, Loader2 } from 'lucide-react'; // Added Loader2
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import Image from 'next/image';
@@ -45,10 +44,10 @@ const RecommendationsPage: NextPage = () => {
     if (!isAppContextLoading && !user) {
       router.push('/login');
     } else if (user) {
-      fetchGeneralRecommendation();
-      fetchFoodSwaps();
+      if(!generalRecommendation && !isLoadingGeneralRecommendation) fetchGeneralRecommendation();
+      if(foodSwaps.length === 0 && !isLoadingFoodSwaps) fetchFoodSwaps();
     }
-  }, [user, isAppContextLoading, router, fetchGeneralRecommendation, fetchFoodSwaps]);
+  }, [user, isAppContextLoading, router, fetchGeneralRecommendation, fetchFoodSwaps, generalRecommendation, foodSwaps, isLoadingGeneralRecommendation, isLoadingFoodSwaps]);
 
   useEffect(() => {
     if (chatScrollAreaRef.current) {
@@ -87,23 +86,25 @@ const RecommendationsPage: NextPage = () => {
 
   return (
     <div className="flex flex-col min-h-screen bg-secondary/30">
-      <Header title="GreenBite Wisdom" /> {/* Updated header title */}
+      <Header title="GreenBite Wisdom" />
       <main className="flex-grow container mx-auto p-4 space-y-6">
         
         <Card className="shadow-lg border-primary/20">
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle className="text-xl text-primary flex items-center">
-                <Sparkles className="w-5 h-5 mr-2 text-accent" /> ✨ Your Weekly Wisdom! {/* Updated title */}
+                <Sparkles className="w-5 h-5 mr-2 text-accent" /> ✨ Your Weekly Wisdom!
               </CardTitle>
               <Button variant="ghost" size="icon" onClick={handleRefreshGeneralTip} disabled={isLoadingGeneralRecommendation} aria-label="Refresh general tip">
-                <RefreshCcw className={`w-5 h-5 ${isLoadingGeneralRecommendation ? 'animate-spin' : ''}`} />
+                {isLoadingGeneralRecommendation ? <Loader2 className="w-5 h-5 animate-spin" /> : <RefreshCcw className="w-5 h-5" />}
               </Button>
             </div>
           </CardHeader>
-          <CardContent>
+          <CardContent className="min-h-[60px]">
             {isLoadingGeneralRecommendation ? (
-              <Skeleton className="h-10 w-full" />
+              <div className="flex justify-center items-center h-full">
+                 <Loader2 className="w-6 h-6 animate-spin text-primary" />
+              </div>
             ) : generalRecommendation ? (
               <p className="text-foreground">{generalRecommendation}</p>
             ) : (
@@ -117,18 +118,18 @@ const RecommendationsPage: NextPage = () => {
           <CardHeader>
              <div className="flex items-center justify-between">
                 <CardTitle className="text-xl text-primary flex items-center">
-                    <RefreshCcw className="w-5 h-5 mr-2 text-primary" /> 🔄 Smart Swaps for a Greener Plate! {/* Updated title */}
+                    <RefreshCcw className="w-5 h-5 mr-2 text-primary" /> 🔄 Smart Swaps for a Greener Plate!
                 </CardTitle>
                 <Button variant="ghost" size="icon" onClick={handleRefreshFoodSwaps} disabled={isLoadingFoodSwaps} aria-label="Refresh food swaps">
-                    <RefreshCcw className={`w-5 h-5 ${isLoadingFoodSwaps ? 'animate-spin' : ''}`} />
+                    {isLoadingFoodSwaps ? <Loader2 className="w-5 h-5 animate-spin" /> : <RefreshCcw className="w-5 h-5" />}
                 </Button>
             </div>
             <CardDescription>AI-suggested changes to lower your carbon footprint and eat greener!</CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="min-h-[250px]">
             {isLoadingFoodSwaps ? (
-              <div className="space-y-3">
-                {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-20 w-full" />)}
+              <div className="flex justify-center items-center h-[250px]">
+                 <Loader2 className="w-8 h-8 animate-spin text-primary" />
               </div>
             ) : foodSwaps && foodSwaps.length > 0 ? (
               <ScrollArea className="h-[250px] pr-3">
@@ -167,7 +168,7 @@ const RecommendationsPage: NextPage = () => {
         <Card className="shadow-lg border-primary/20">
           <CardHeader>
             <CardTitle className="text-xl text-primary flex items-center">
-              <Bot className="w-5 h-5 mr-2" /> 🤖 Chat with Your GreenBite Guide! {/* Updated title */}
+              <Bot className="w-5 h-5 mr-2" /> 🤖 Chat with Your GreenBite Guide!
             </CardTitle>
             <CardDescription>Ask about low-carbon eating, get ideas, or learn more. Your meal history adds context!</CardDescription>
           </CardHeader>
@@ -201,7 +202,7 @@ const RecommendationsPage: NextPage = () => {
                 disabled={isLoadingChatResponse}
               />
               <Button type="submit" size="icon" disabled={isLoadingChatResponse || !chatInput.trim()} aria-label="Send chat message">
-                {isLoadingChatResponse ? <RefreshCcw className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
+                {isLoadingChatResponse ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
               </Button>
             </form>
           </CardContent>

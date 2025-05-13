@@ -1,4 +1,3 @@
-
 "use client";
 
 import type { NextPage } from 'next';
@@ -85,7 +84,7 @@ const ReportsPage: NextPage = () => {
   };
 
   const handleNextDates = () => {
-    setDateScrollerOffset(prev => Math.min(allScrollableDates.length - VISIBLE_DATES_IN_SCROLLER, prev - 1));
+    setDateScrollerOffset(prev => Math.min(allScrollableDates.length - VISIBLE_DATES_IN_SCROLLER, prev + 1));
   };
   
   const currentGraphWeekStart = useMemo(() => startOfWeek(todayDateObj, { weekStartsOn: 1 }), [todayDateObj]); 
@@ -223,50 +222,48 @@ const ReportsPage: NextPage = () => {
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
-       <Header title="Your Green Progress" /> {/* Updated header title */}
+       <Header title="Home" /> 
       <main className="flex-grow container mx-auto px-2 py-4 sm:px-4 sm:py-6 space-y-4 sm:space-y-6">
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
-          {/* Top-Left Panel: CO2e Stats */}
           <Card className="bg-primary-light shadow-lg border-primary/20 overflow-hidden">
             <CardContent className="p-3 flex flex-row"> 
             <div className="flex-1 text-center pr-2 sm:pr-3 py-2 border-r border-primary/30 flex flex-col justify-center items-center"> 
-                <p className="text-xs font-bold uppercase text-gray-600 tracking-wider mb-1">AS OF TODAY</p>
-                <p className="text-3xl sm:text-4xl font-bold text-primary my-1">{todaysTotalCO2e.toFixed(1)}</p>
-                <p className="text-xs text-gray-500">kg CO₂e</p>
+                <p className="text-[0.6rem] font-bold uppercase text-gray-600 tracking-wider mb-0.5">AS OF TODAY</p>
+                <p className="text-2xl sm:text-3xl font-bold text-primary my-0.5">{todaysTotalCO2e.toFixed(1)}</p>
+                <p className="text-[0.6rem] text-gray-500">kg CO₂e</p>
               </div>
               
               <div className="flex-1 pl-2 sm:pl-3 flex flex-col justify-around"> 
-                <div className="text-center flex-1 flex flex-col justify-center py-1">
-                  <p className="text-xs font-bold uppercase text-gray-600 tracking-wider mb-1">AVE. DAILY</p>
+                <div className="text-center flex-1 flex flex-col justify-center py-0.5">
+                  <p className="text-[0.6rem] font-bold uppercase text-gray-600 tracking-wider mb-0.5">AVE. DAILY</p>
                   <div className="flex items-baseline justify-center space-x-1">
-                    <p className="text-xl sm:text-2xl font-bold text-gray-700">{rolling7DayAverageDailyCO2e.toFixed(1)}</p>
-                    <span className={`text-xs font-medium flex items-center ${avgDailyChange.direction === 'down' ? 'text-green-500' : (avgDailyChange.direction === 'up' ? 'text-red-500' : 'text-gray-500')}`}>
-                      {avgDailyChange.direction === 'down' ? <ArrowDown className="w-3 h-3" /> : (avgDailyChange.direction === 'up' ? <ArrowUp className="w-3 h-3" /> : null)}
+                    <p className="text-lg sm:text-xl font-bold text-gray-700">{rolling7DayAverageDailyCO2e.toFixed(1)}</p>
+                    <span className={`text-[0.55rem] font-medium flex items-center ${avgDailyChange.direction === 'down' ? 'text-green-500' : (avgDailyChange.direction === 'up' ? 'text-red-500' : 'text-gray-500')}`}>
+                      {avgDailyChange.direction === 'down' ? <ArrowDown className="w-2.5 h-2.5" /> : (avgDailyChange.direction === 'up' ? <ArrowUp className="w-2.5 h-2.5" /> : null)}
                       {avgDailyChange.value.toFixed(1)}%
                     </span>
                   </div>
-                  <p className="text-xs text-gray-500">kg CO₂e</p>
+                  <p className="text-[0.6rem] text-gray-500">kg CO₂e</p>
                 </div>
 
-                <hr className="border-primary/20 my-1" /> 
+                <hr className="border-primary/20 my-0.5" /> 
 
-                <div className="text-center flex-1 flex flex-col justify-center py-1">
-                  <p className="text-xs font-bold uppercase text-gray-600 tracking-wider mb-1">OVER THE LAST 7 DAYS</p>
+                <div className="text-center flex-1 flex flex-col justify-center py-0.5">
+                  <p className="text-[0.6rem] font-bold uppercase text-gray-600 tracking-wider mb-0.5">OVER THE LAST 7 DAYS</p>
                   <div className="flex items-baseline justify-center space-x-1">
-                    <p className="text-xl sm:text-2xl font-bold text-gray-700">{rolling7DayTotalCO2e.toFixed(1)}</p>
-                    <span className={`text-xs font-medium flex items-center ${weeklyChange.direction === 'down' ? 'text-green-500' : (weeklyChange.direction === 'up' ? 'text-red-500' : 'text-gray-500')}`}>
-                      {weeklyChange.direction === 'down' ? <ArrowDown className="w-3 h-3" /> : (weeklyChange.direction === 'up' ? <ArrowUp className="w-3 h-3" /> : null)}
+                    <p className="text-lg sm:text-xl font-bold text-gray-700">{rolling7DayTotalCO2e.toFixed(1)}</p>
+                     <span className={`text-[0.55rem] font-medium flex items-center ${weeklyChange.direction === 'down' ? 'text-green-500' : (weeklyChange.direction === 'up' ? 'text-red-500' : 'text-gray-500')}`}>
+                      {weeklyChange.direction === 'down' ? <ArrowDown className="w-2.5 h-2.5" /> : (weeklyChange.direction === 'up' ? <ArrowUp className="w-2.5 h-2.5" /> : null)}
                       {weeklyChange.value.toFixed(1)}%
                     </span>
                   </div>
-                  <p className="text-xs text-gray-500">kg CO₂e</p>
+                  <p className="text-[0.6rem] text-gray-500">kg CO₂e</p>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          {/* Top-Right Panel: Graph: 7-Day Trend */}
           <Card className="shadow-lg">
              <CardContent className="h-[200px] sm:h-[250px] p-2 pt-4 flex flex-col"> 
               <ResponsiveContainer width="100%" height="100%">
@@ -295,12 +292,11 @@ const ReportsPage: NextPage = () => {
             </CardContent>
           </Card>
 
-          {/* Bottom-Left Panel: Weekly Tip */}
            <Card className="shadow-lg">
-            <CardContent className="p-4">
-              <h3 className="text-md font-semibold text-primary mb-2 flex items-center"><Leaf className="w-4 h-4 mr-2 text-primary" /> 🌱 Your Weekly Growth Tip</h3> {/* Updated title */}
+            <CardContent className="p-4 min-h-[120px] flex flex-col justify-center">
+              <h3 className="text-md font-semibold text-primary mb-2 flex items-center"><Leaf className="w-4 h-4 mr-2 text-primary" /> 🌱 Your Weekly Growth Tip</h3>
               {isLoadingWeeklyTip ? (
-                <div className="flex items-center justify-center h-[100px]">
+                <div className="flex items-center justify-center h-full">
                   <Loader2 className="animate-spin h-6 w-6 text-primary" />
                 </div>
               ) : weeklyTip ? (
@@ -311,10 +307,9 @@ const ReportsPage: NextPage = () => {
             </CardContent>
           </Card>
 
-          {/* Bottom-Right Panel: Daily Meal Logs */}
           <Card className="shadow-lg">
             <CardContent className="p-4">
-               <h3 className="text-md font-semibold text-primary mb-2 flex items-center"><Utensils className="w-4 h-4 mr-2 text-primary" /> 🍽️ Meals on {format(selectedDate, 'MMM d, EEE')}</h3> {/* Updated title */}
+               <h3 className="text-md font-semibold text-primary mb-2 flex items-center"><Utensils className="w-4 h-4 mr-2 text-primary" /> 🍽️ Meals on {format(selectedDate, 'MMM d, EEE')}</h3>
                {isLoading ? (
                  <div className="h-[100px] flex items-center justify-center">
                     <Loader2 className="animate-spin h-6 w-6 text-primary" />
@@ -352,14 +347,13 @@ const ReportsPage: NextPage = () => {
                     </ul>
                   </ScrollArea>
                 ) : (
-                  <p className="text-sm text-muted-foreground text-center py-4">No meals logged for this day and meal type. Time to log something yummy!</p>
+                  <p className="text-sm text-muted-foreground text-center py-4">No meals logged for this day and meal type.</p>
                 )}
             </CardContent>
           </Card>
         </div>
 
 
-        {/* Date Scroller */}
         <div className="flex items-center space-x-1">
             <Button variant="ghost" size="icon" onClick={handlePrevDates} disabled={dateScrollerOffset === 0} aria-label="Previous dates">
                 <ChevronLeft className="h-5 w-5 sm:h-6 sm:h-6" />
@@ -388,7 +382,6 @@ const ReportsPage: NextPage = () => {
         </div>
 
 
-        {/* Meal Type Tabs */}
         <Tabs defaultValue={selectedMealType} onValueChange={setSelectedMealType} className="w-full">
           <TabsList className="grid w-full grid-cols-3 h-10 sm:h-12 bg-card border">
             {mealTypes.map(type => (
@@ -399,7 +392,6 @@ const ReportsPage: NextPage = () => {
           </TabsList>
         </Tabs>
         
-        {/* Meal Logs for Selected Date/Type */}
         <Card className="shadow-md">
            <CardContent className="p-3">
             {isLoading ? (
@@ -428,33 +420,37 @@ const ReportsPage: NextPage = () => {
                       </a>
                     </Link>
                   </li>
-                  {filteredMealsForSelectedDateTimeType.map((log, index) => (
-                    <li key={log.timestamp + index} className="flex items-start space-x-3 p-3 bg-background rounded-lg border border-border/70 shadow-sm hover:shadow-md transition-shadow">
-                      {log.photoDataUri ? (
-                        <img data-ai-hint="food meal" src={log.photoDataUri} alt="Meal" className="w-12 h-12 sm:w-16 sm:h-16 object-cover rounded-md border" />
-                      ) : (
-                        <div className="w-12 h-12 sm:w-16 sm:h-16 bg-secondary rounded-md flex items-center justify-center flex-shrink-0" data-ai-hint="utensils plate">
-                          <Utensils className="w-5 h-5 sm:w-6 sm:h-6 text-muted-foreground" />
-                        </div>
-                      )}
-                      <div className="flex-1 min-w-0">
-                         <div className="flex justify-between items-start mb-1">
-                           <p className="text-xs sm:text-sm font-semibold text-primary truncate flex-grow" title={log.foodItems.map(item => item.name).join(', ') || "Meal"}>
-                             {log.foodItems.map(item => item.name).join(', ') || "Meal"}
+                  {filteredMealsForSelectedDateTimeType.length > 0 ? (
+                     filteredMealsForSelectedDateTimeType.map((log, index) => (
+                      <li key={log.timestamp + index} className="flex items-start space-x-3 p-3 bg-background rounded-lg border border-border/70 shadow-sm hover:shadow-md transition-shadow">
+                        {log.photoDataUri ? (
+                          <img data-ai-hint="food meal" src={log.photoDataUri} alt="Meal" className="w-12 h-12 sm:w-16 sm:h-16 object-cover rounded-md border" />
+                        ) : (
+                          <div className="w-12 h-12 sm:w-16 sm:h-16 bg-secondary rounded-md flex items-center justify-center flex-shrink-0" data-ai-hint="utensils plate">
+                            <Utensils className="w-5 h-5 sm:w-6 sm:h-6 text-muted-foreground" />
+                          </div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                           <div className="flex justify-between items-start mb-1">
+                             <p className="text-xs sm:text-sm font-semibold text-primary truncate flex-grow" title={log.foodItems.map(item => item.name).join(', ') || "Meal"}>
+                               {log.foodItems.map(item => item.name).join(', ') || "Meal"}
+                             </p>
+                             <span className="text-xs sm:text-sm font-medium text-primary whitespace-nowrap ml-2">
+                               {log.totalCarbonFootprint.toFixed(2)} kg CO₂e
+                             </span>
+                          </div>
+                          <p className="text-xs text-muted-foreground mb-1">
+                            {log.foodItems.map(item => item.quantity).filter(Boolean).join(', ') || "Quantity not specified"}
+                          </p>
+                           <p className="text-xs text-muted-foreground flex items-center whitespace-nowrap">
+                                <Clock className="w-3 h-3 mr-1" />{format(parseISO(log.timestamp), 'p')}
                            </p>
-                           <span className="text-xs sm:text-sm font-medium text-primary whitespace-nowrap ml-2">
-                             {log.totalCarbonFootprint.toFixed(2)} kg CO₂e
-                           </span>
                         </div>
-                        <p className="text-xs text-muted-foreground mb-1">
-                          {log.foodItems.map(item => item.quantity).filter(Boolean).join(', ') || "Quantity not specified"}
-                        </p>
-                         <p className="text-xs text-muted-foreground flex items-center whitespace-nowrap">
-                              <Clock className="w-3 h-3 mr-1" />{format(parseISO(log.timestamp), 'p')}
-                         </p>
-                      </div>
-                    </li>
-                  ))}
+                      </li>
+                    ))
+                  ) : (
+                     <p className="text-sm text-muted-foreground text-center py-4">No meals logged for {selectedMealType.toLowerCase()} on {format(selectedDate, 'MMM d')}.</p>
+                  )}
                 </ul>
               </ScrollArea>
             )}
