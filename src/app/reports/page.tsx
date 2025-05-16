@@ -1,3 +1,4 @@
+
 "use client";
 
 import type { NextPage } from 'next';
@@ -222,10 +223,10 @@ const ReportsPage: NextPage = () => {
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
-       <Header title="Home" /> 
+       <Header title="Reports" /> 
       <main className="flex-grow container mx-auto px-2 py-4 sm:px-4 sm:py-6 space-y-4 sm:space-y-6">
         
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+        <div className="flex flex-col space-y-4 sm:space-y-6">
           <Card className="bg-primary-light shadow-lg border-primary/20 overflow-hidden">
             <CardContent className="p-3 flex flex-row"> 
             <div className="flex-1 text-center pr-2 sm:pr-3 py-2 border-r border-primary/30 flex flex-col justify-center items-center"> 
@@ -307,50 +308,6 @@ const ReportsPage: NextPage = () => {
             </CardContent>
           </Card>
 
-          <Card className="shadow-lg">
-            <CardContent className="p-4">
-               <h3 className="text-md font-semibold text-primary mb-2 flex items-center"><Utensils className="w-4 h-4 mr-2 text-primary" /> 🍽️ Meals on {format(selectedDate, 'MMM d, EEE')}</h3>
-               {isLoading ? (
-                 <div className="h-[100px] flex items-center justify-center">
-                    <Loader2 className="animate-spin h-6 w-6 text-primary" />
-                 </div>
-                ) : filteredMealsForSelectedDateTimeType.length > 0 ? (
-                  <ScrollArea className="h-[200px] sm:h-[250px] pr-1">
-                    <ul className="space-y-3">
-                      {filteredMealsForSelectedDateTimeType.map((log, index) => (
-                        <li key={log.timestamp + index} className="flex items-start space-x-3 p-3 bg-background rounded-lg border border-border/70 shadow-sm">
-                          {log.photoDataUri ? (
-                            <img data-ai-hint="food meal" src={log.photoDataUri} alt="Meal" className="w-12 h-12 sm:w-16 sm:h-16 object-cover rounded-md border" />
-                          ) : (
-                            <div className="w-12 h-12 sm:w-16 sm:h-16 bg-secondary rounded-md flex items-center justify-center flex-shrink-0" data-ai-hint="utensils plate">
-                              <Utensils className="w-5 h-5 sm:w-6 sm:h-6 text-muted-foreground" />
-                            </div>
-                          )}
-                          <div className="flex-1 min-w-0">
-                             <div className="flex justify-between items-start mb-1">
-                               <p className="text-xs sm:text-sm font-semibold text-primary truncate flex-grow" title={log.foodItems.map(item => item.name).join(', ') || "Meal"}>
-                                 {log.foodItems.map(item => item.name).join(', ') || "Meal"}
-                               </p>
-                               <span className="text-xs sm:text-sm font-medium text-primary whitespace-nowrap ml-2">
-                                 {log.totalCarbonFootprint.toFixed(2)} kg CO₂e
-                               </span>
-                            </div>
-                            <p className="text-xs text-muted-foreground mb-1">
-                              {log.foodItems.map(item => item.quantity).filter(Boolean).join(', ') || "Quantity not specified"}
-                            </p>
-                             <p className="text-xs text-muted-foreground flex items-center whitespace-nowrap">
-                                  <Clock className="w-3 h-3 mr-1" />{format(parseISO(log.timestamp), 'p')}
-                             </p>
-                          </div>
-                        </li>
-                      ))}
-                    </ul>
-                  </ScrollArea>
-                ) : (
-                  <p className="text-sm text-muted-foreground text-center py-4">No meals logged for this day and meal type.</p>
-                )}
-            </CardContent>
-          </Card>
         </div>
 
 
@@ -459,6 +416,7 @@ const ReportsPage: NextPage = () => {
 
       </main>
 
+      {/* Plus button fixed at bottom right, above BottomNav */}
       <Link href="/log-meal" passHref>
         <Button
           className="fixed bottom-20 right-4 sm:right-6 h-14 w-14 sm:h-16 sm:w-16 rounded-full bg-accent shadow-xl hover:bg-accent/90 z-40"
@@ -473,3 +431,6 @@ const ReportsPage: NextPage = () => {
 };
 
 export default ReportsPage;
+
+
+    
