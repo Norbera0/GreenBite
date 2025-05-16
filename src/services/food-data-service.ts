@@ -1,3 +1,4 @@
+
 // src/services/food-data-service.ts
 import { parse } from 'csv-parse/sync';
 
@@ -21,10 +22,12 @@ async function fetchAndParseCSV(): Promise<FoodCarbonData[]> {
     }
     const csvText = await response.text();
     const records: FoodCarbonData[] = parse(csvText, {
-      columns: true,
+      columns: ['food_item_name', 'co2e_per_kg', 'source_notes'], // Explicitly define columns
+      from_line: 2, // Skip the header row in the CSV file
       skip_empty_lines: true,
       trim: true,
       cast: (value, context) => {
+        // When columns are explicitly defined as an array, context.column is the column name.
         if (context.column === 'co2e_per_kg') {
           const num = parseFloat(value);
           return isNaN(num) ? null : num; // Return null if parsing fails
