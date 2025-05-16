@@ -40,7 +40,7 @@ function calculateChange(current: number, previous: number): { value: number; di
 }
 
 const VISIBLE_DATES_IN_SCROLLER = 7;
-const GLOBAL_AVG_CO2E = 6.03; // Updated constant name and value
+const GLOBAL_AVG_CO2E = 6.03; 
 
 const ReportsPage: NextPage = () => { 
   const { user, mealLogs, isLoading, weeklyTip, fetchWeeklyTip, isLoadingWeeklyTip } = useAppContext();
@@ -224,9 +224,8 @@ const ReportsPage: NextPage = () => {
   return (
     <div className="flex flex-col min-h-screen bg-background">
        <Header title="Reports" /> 
-      <main className="flex-grow container mx-auto px-2 py-4 sm:px-4 sm:py-6 space-y-4 sm:space-y-6">
+      <main className="flex-grow container mx-auto px-2 py-4 sm:px-4 sm:py-6 flex flex-col space-y-4 sm:space-y-6">
         
-        <div className="flex flex-col space-y-4 sm:space-y-6">
           <Card className="bg-primary-light shadow-lg border-primary/20 overflow-hidden">
             <CardContent className="p-3 flex flex-row"> 
             <div className="flex-1 text-center pr-2 sm:pr-3 py-2 border-r border-primary/30 flex flex-col justify-center items-center"> 
@@ -307,22 +306,20 @@ const ReportsPage: NextPage = () => {
               )}
             </CardContent>
           </Card>
-
-        </div>
-
-
+        
         <div className="flex items-center space-x-1">
             <Button variant="ghost" size="icon" onClick={handlePrevDates} disabled={dateScrollerOffset === 0} aria-label="Previous dates">
                 <ChevronLeft className="h-5 w-5 sm:h-6 sm:h-6" />
             </Button>
             <ScrollArea className="w-full whitespace-nowrap rounded-md flex-grow">
-              <div className="flex space-x-2 sm:space-x-3 pb-2">
+              <div className="flex w-full space-x-2 sm:space-x-3 pb-2"> {/* Ensured w-full here */}
                 {dateScrollerDates.map(date => (
                   <Button
                     key={date.toISOString()}
                     variant={isSameDay(date, selectedDate) ? "default" : "outline"}
-                    className={cn("flex flex-col items-center justify-center h-14 w-14 sm:h-16 sm:w-16 p-1 sm:p-2 shadow-md transition-all shrink-0", 
-                                  isSameDay(date, selectedDate) ? "bg-primary text-primary-foreground border-primary scale-105" : "bg-card border-border hover:bg-muted"
+                    className={cn(
+                      "flex flex-col items-center justify-center h-14 sm:h-16 p-1 sm:p-2 shadow-md transition-all flex-1", // Removed fixed width, added flex-1
+                      isSameDay(date, selectedDate) ? "bg-primary text-primary-foreground border-primary scale-105" : "bg-card border-border hover:bg-muted"
                     )}
                     onClick={() => setSelectedDate(date)}
                   >
@@ -416,7 +413,6 @@ const ReportsPage: NextPage = () => {
 
       </main>
 
-      {/* Plus button fixed at bottom right, above BottomNav */}
       <Link href="/log-meal" passHref>
         <Button
           className="fixed bottom-20 right-4 sm:right-6 h-14 w-14 sm:h-16 sm:w-16 rounded-full bg-accent shadow-xl hover:bg-accent/90 z-40"
@@ -431,6 +427,3 @@ const ReportsPage: NextPage = () => {
 };
 
 export default ReportsPage;
-
-
-    
