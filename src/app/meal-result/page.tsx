@@ -7,13 +7,14 @@ import { useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Leaf, Utensils, Home, Sparkles, Info, AlertTriangle, Loader2, Zap, MessageCircle, CheckCircle } from 'lucide-react'; 
+import { Leaf, Utensils, Home, Sparkles, Info, AlertTriangle, Loader2, Zap, CheckCircle } from 'lucide-react'; 
 import Header from '@/components/header';
 import { useAppContext } from '@/context/app-context';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { cn } from '@/lib/utils'; 
+import type { FoodItem } from '@/ai/schemas'; // Ensure FoodItem type is available
 
 const MealResultPage: NextPage = () => {
   const router = useRouter();
@@ -23,7 +24,9 @@ const MealResultPage: NextPage = () => {
     if (!isLoading && !user) {
       router.push('/login');
     } else if (!isLoading && !mealResult) {
-      router.push('/'); 
+      // If no mealResult, perhaps redirect to home or log-meal page
+      // For now, it will show the "No meal result data found" message if mealResult is null
+      // router.push('/'); 
     }
   }, [user, mealResult, isLoading, router]);
 
@@ -40,7 +43,7 @@ const MealResultPage: NextPage = () => {
   };
 
 
-  if (isLoading || !user) {
+  if (isLoading || (!user && !isLoading)) { // Show loader if app context is loading or if user is null and not loading (redirecting)
     return (
         <div className="flex flex-col min-h-screen bg-background">
             <Header title="GreenBite" showBackButton={false} />
@@ -98,7 +101,7 @@ const MealResultPage: NextPage = () => {
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
-      <Header title="Your Meal's Green Impact!" showBackButton={false}/> {/* Updated header title */}
+      <Header title="Your Meal's Green Impact!" showBackButton={false}/>
       <main className="flex-grow container mx-auto p-4 flex flex-col items-center">
         <Card className="w-full max-w-lg shadow-lg mb-6 border-primary/20">
           <CardHeader>
@@ -111,14 +114,14 @@ const MealResultPage: NextPage = () => {
                 </div>
               )}
             </div>
-            <CardTitle className="text-2xl text-center text-primary">Your Meal's Eco-Score</CardTitle> {/* Updated card title */}
+            <CardTitle className="text-2xl text-center text-primary">Your Meal's Eco-Score</CardTitle>
             <CardDescription className="text-center">
               Here's the scoop on your meal's carbon footprint and some friendly feedback!
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="text-center p-4 bg-primary/10 rounded-lg border border-primary/20">
-              <p className="text-sm font-medium text-primary mb-1">Total Green Impact</p> {/* Updated text */}
+              <p className="text-sm font-medium text-primary mb-1">Total Green Impact</p>
               <p className="text-3xl font-bold text-primary">
                 {carbonFootprintKgCO2e.toFixed(2)} kg CO₂e
               </p>
@@ -127,7 +130,7 @@ const MealResultPage: NextPage = () => {
             {carbonEquivalency && (
               <Alert variant="default" className="bg-secondary/50 border-border">
                 <Zap className="h-5 w-5 text-primary" />
-                <AlertTitle className="text-primary font-semibold">Eco Fact!</AlertTitle> {/* Updated title */}
+                <AlertTitle className="text-primary font-semibold">Eco Fact!</AlertTitle>
                 <AlertDescription className="text-foreground/80">
                   {carbonEquivalency}
                 </AlertDescription>
@@ -146,7 +149,7 @@ const MealResultPage: NextPage = () => {
 
 
             <div>
-              <h3 className="text-lg font-semibold mb-2 flex items-center"><Leaf className="w-4 h-4 mr-2 text-primary" />Your Meal Items</h3> {/* Updated text */}
+              <h3 className="text-lg font-semibold mb-2 flex items-center"><Leaf className="w-4 h-4 mr-2 text-primary" />Your Meal Items</h3>
               <ScrollArea className="h-[150px] w-full border rounded-md">
                 <Table>
                   <TableHeader>
@@ -162,7 +165,9 @@ const MealResultPage: NextPage = () => {
                                 <Info className="h-3 w-3 ml-1 text-muted-foreground cursor-help" />
                               </TooltipTrigger>
                               <TooltipContent side="top">
-                                <p className="text-xs max-w-xs">Per-item CO₂e is roughly estimated by dividing the total. The AI provides the overall meal footprint.</p>
+                                <p className="text-xs max-w-xs">
+                                  Per-item CO₂e is individually calculated if possible. Otherwise, it's an approximation from the total.
+                                </p>
                               </TooltipContent>
                             </Tooltip>
                           </TooltipProvider>
@@ -172,12 +177,14 @@ const MealResultPage: NextPage = () => {
                   </TableHeader>
                   <TableBody>
                     {foodItems.length > 0 ? (
-                      foodItems.map((item, index) => (
+                      foodItems.map((item: FoodItem, index: number) => ( // Ensure item is typed as FoodItem
                         <TableRow key={index}>
                           <TableCell className="font-medium capitalize">{item.name || 'Unknown Item'}</TableCell>
                           <TableCell>{item.quantity || 'N/A'}</TableCell>
                           <TableCell className="text-right text-muted-foreground">
-                            {(carbonFootprintKgCO2e / (foodItems.length || 1)).toFixed(2)}*
+                            {typeof item.calculatedCO2eKg === 'number' 
+                              ? item.calculatedCO2eKg.toFixed(2) 
+                              : (carbonFootprintKgCO2e / (foodItems.length || 1)).toFixed(2) + "*"}
                           </TableCell>
                         </TableRow>
                       ))
@@ -189,6 +196,9 @@ const MealResultPage: NextPage = () => {
                   </TableBody>
                 </Table>
               </ScrollArea>
+               <p className="text-xs text-muted-foreground mt-1 text-right">
+                *Approximated CO₂e per item (total divided by item count).
+              </p>
             </div>
           </CardContent>
           <CardFooter className="flex flex-col sm:flex-row gap-2 justify-between">

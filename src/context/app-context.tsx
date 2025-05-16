@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useMemo } from 'react';
-import type { EstimateCarbonFootprintOutput, FoodItem, FoodSwap, ChatHistoryMessage, GenerateTipInput, IdentifiedItem as AIIdentifiedFoodItem, MealImpactLevel, GenerateDailyChallengeInput, GenerateDailyChallengeOutput, GenerateWeeklyChallengeInput, GenerateWeeklyChallengeOutput } from '@/ai/schemas'; 
+import type { FoodItem, FoodSwap, ChatHistoryMessage, GenerateTipInput, IdentifiedItem as AIIdentifiedFoodItem, MealImpactLevel, GenerateDailyChallengeInput, GenerateDailyChallengeOutput, GenerateWeeklyChallengeInput, GenerateWeeklyChallengeOutput } from '@/ai/schemas'; 
 import { generateWeeklyTip } from '@/ai/flows/generate-weekly-tip';
 import { generateGeneralRecommendation } from '@/ai/flows/generate-general-recommendation';
 import { generateFoodSwaps } from '@/ai/flows/generate-food-swaps';
@@ -16,32 +16,31 @@ interface User {
   email: string;
 }
 
+// FoodItem type is now imported from '@/ai/schemas' and includes calculatedCO2eKg
+
 export interface MealLog {
   userEmail: string;
   date: string; // YYYY-MM-DD (local date of the meal)
   timestamp: string; // ISO string for precise time (UTC)
-  photoDataUri?: string; // Made optional, will not be stored in localStorage for long-term logs
-  foodItems: FoodItem[]; // User-confirmed food items
+  // photoDataUri is removed from long-term storage to save space
+  foodItems: FoodItem[]; // User-confirmed food items, potentially with individual CO2e
   totalCarbonFootprint: number;
   mealType?: 'Breakfast' | 'Lunch' | 'Dinner';
 }
 
-// Interface for the data passed when adding a new meal log
 export interface NewMealLogData {
   photoDataUri?: string; // Photo of the meal currently being logged
-  foodItems: FoodItem[];
+  foodItems: FoodItem[]; // Items with name, quantity, and potentially calculatedCO2eKg
   totalCarbonFootprint: number;
 }
 
-
-// This structure will be stored in mealResult in context for the meal-result page
 export interface FinalMealResult {
-  foodItems: FoodItem[]; // User-confirmed items
+  foodItems: FoodItem[]; // User-confirmed items, potentially with individual CO2e
   carbonFootprintKgCO2e: number;
   carbonEquivalency?: string; 
   mealFeedbackMessage?: string; 
   impactLevel?: MealImpactLevel; 
-  mealSuggestion?: string; // Added for immediate AI feedback feature
+  mealSuggestion?: string; 
 }
 
 
@@ -57,7 +56,6 @@ export interface ChatMessage {
   timestamp: number;
 }
 
-// Challenge and Streak Types
 export type DailyChallengeType = 'log_plant_based' | 'co2e_under_today' | 'avoid_red_meat_meal' | 'log_three_meals' | 'log_low_co2e_meal';
 export interface DailyChallenge {
   id: string; 
@@ -65,7 +63,7 @@ export interface DailyChallenge {
   type: DailyChallengeType;
   targetValue?: number; 
   isCompleted: boolean;
-  date: string; // YYYY-MM-DD for which this challenge is
+  date: string; 
 }
 
 export type WeeklyChallengeType = 'weekly_co2e_under' | 'plant_based_meals_count' | 'log_days_count';
@@ -133,7 +131,7 @@ const AppContext = createContext<AppContextProps | undefined>(undefined);
 
 const USER_STORAGE_KEY = 'greenBiteUser'; 
 const MEAL_LOGS_STORAGE_KEY = 'greenBiteMealLogs'; 
-const MAX_MEAL_LOGS_STORED = 30; // Further reduced max logs to help with quota
+const MAX_MEAL_LOGS_STORED = 20; // Reduced further to manage quota strictly
 const DETECTED_ITEMS_STORAGE_KEY = 'greenBiteDetectedMealItems'; 
 const WEEKLY_TIP_STORAGE_KEY_PREFIX = 'greenBiteWeeklyTip_';
 const GENERAL_REC_STORAGE_KEY_PREFIX = 'greenBiteGeneralRec_';
@@ -209,11 +207,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
       const storedLogs = localStorage.getItem(MEAL_LOGS_STORAGE_KEY);
       if (storedLogs) {
-        const logsFromStorage: Omit<MealLog, 'photoDataUri'>[] = JSON.parse(storedLogs);
+        // The logs in storage are already just { userEmail, date, timestamp, foodItems, totalCarbonFootprint, mealType }
+        const logsFromStorage: MealLog[] = JSON.parse(storedLogs); 
         const migratedLogs: MealLog[] = logsFromStorage.map(log => ({
           ...log, 
-          date: log.date || format(parseISO(log.timestamp), 'yyyy-MM-dd'),
-          mealType: log.mealType || getMealType(log.timestamp)
+          date: log.date || format(parseISO(log.timestamp), 'yyyy-MM-dd'), // Ensure date field consistency
+          mealType: log.mealType || getMealType(log.timestamp) // Ensure mealType consistency
         })).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
         setMealLogs(migratedLogs);
       }
@@ -227,7 +226,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const getMealLogsSummaryForAI = useCallback((logsToSummarize: MealLog[], days = 7): string => {
     if (logsToSummarize.length === 0) return "No meals logged in the relevant period.";
     const today = new Date();
-    const periodStart = subDays(today, days - 1); // e.g., 7 days ago up to today inclusive
+    const periodStart = subDays(today, days - 1); 
     
     const recentLogs = logsToSummarize.filter(log => {
         try {
@@ -254,7 +253,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       .map(([date, logsForDay], index) => {
         const dayOfWeek = format(parseISO(date), 'EEEE (MMM d)');
         const mealsString = logsForDay.map(log =>
-            `${log.foodItems.map(item => `${item.name} (${item.quantity || 'N/A'})`).join(', ') || 'Logged Meal'} (Total: ${log.totalCarbonFootprint.toFixed(2)} kg CO₂e, Meal: ${log.mealType || 'Unknown'})`
+            `${log.foodItems.map(item => `${item.name} (${item.quantity || 'N/A'})${item.calculatedCO2eKg ? ` ~${item.calculatedCO2eKg.toFixed(2)}kg` : ''}`).join(', ') || 'Logged Meal'} (Total: ${log.totalCarbonFootprint.toFixed(2)} kg CO₂e, Meal: ${log.mealType || 'Unknown'})`
         ).join('; ');
         return `Day ${index + 1} (${dayOfWeek}): ${mealsString}`;
       }).join('\n') || "No meal activity to summarize.";
@@ -277,7 +276,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       localStorage.setItem(`${DAILY_CHALLENGE_STORAGE_KEY_PREFIX}${user.email}`, JSON.stringify(newDailyChallenge));
     } catch (error) {
       console.error("Error generating daily challenge:", error);
-      // Fallback or keep old one if generation fails
     } finally {
       setIsLoadingDailyChallenge(false);
     }
@@ -286,7 +284,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const checkAndRefreshDailyChallenge = useCallback(() => {
     if (!user) return;
     const todayStr = format(new Date(), 'yyyy-MM-dd');
-    const summary = getMealLogsSummaryForAI(currentUserMealLogs, 3); // Short summary for daily
+    const summary = getMealLogsSummaryForAI(currentUserMealLogs, 3); 
     if (!dailyChallenge || dailyChallenge.date !== todayStr) {
       _generateAndSetDailyChallenge(summary);
     }
@@ -305,7 +303,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const today = new Date();
     const currentWeekStart = format(startOfWeek(today, { weekStartsOn: 1 }), 'yyyy-MM-dd');
     try {
-      const mealLogsSummary = getMealLogsSummaryForAI(currentUserMealLogs, 14); // Longer summary for weekly
+      const mealLogsSummary = getMealLogsSummaryForAI(currentUserMealLogs, 14); 
       const input: GenerateWeeklyChallengeInput = { mealLogsSummary };
       const aiChallengeOutput: GenerateWeeklyChallengeOutput = await generateWeeklyChallenge(input);
       
@@ -314,7 +312,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         id: `${aiChallengeOutput.type}_${currentWeekStart}_${Date.now()}`,
         startDate: currentWeekStart,
         endDate: format(endOfWeek(today, { weekStartsOn: 1 }), 'yyyy-MM-dd'),
-        currentValue: 0, // Reset current value for new challenge
+        currentValue: 0, 
         isCompleted: false,
       };
       setWeeklyChallenge(newWeeklyChallenge);
@@ -522,44 +520,47 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const timestamp = currentDate.toISOString();
     const mealType = getMealType(timestamp);
 
-    const logForState: MealLog = {
+    const logToAdd: MealLog = { // This log includes all data, including per-item CO2e
       userEmail: user.email,
       date: format(currentDate, 'yyyy-MM-dd'),
       timestamp: timestamp,
-      photoDataUri: newLogData.photoDataUri,
-      foodItems: newLogData.foodItems,
+      // photoDataUri is NOT part of the logForStorage
+      foodItems: newLogData.foodItems, // These items can have 'calculatedCO2eKg'
       totalCarbonFootprint: newLogData.totalCarbonFootprint,
       mealType: mealType,
     };
     
+    // Update in-memory state first
     setMealLogs(prevLogs => {
-      let logsForStateProcessing = [logForState, ...prevLogs];
-      logsForStateProcessing.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-      
-      const logsForPersistentStorage = logsForStateProcessing.map(log => {
-        const { photoDataUri, ...rest } = log; 
-        return rest; 
-      });
-      
-      // Trim logs before saving to localStorage
-      const trimmedLogsForStorage = logsForPersistentStorage.slice(0, MAX_MEAL_LOGS_STORED);
+      const updatedLogsInMemory = [logToAdd, ...prevLogs]
+        .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+        .slice(0, MAX_MEAL_LOGS_STORED * 2); // Keep more in memory temporarily if needed, but less in localStorage
+
+      // Prepare logs for persistent storage (without photoDataUri)
+      const logsForPersistentStorage: Omit<MealLog, 'photoDataUri'>[] = updatedLogsInMemory
+        .map(log => {
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          const { photoDataUri, ...rest } = log; // Explicitly remove photoDataUri for storage
+          return rest;
+        })
+        .slice(0, MAX_MEAL_LOGS_STORED); // Trim for localStorage
 
       try {
-        localStorage.setItem(MEAL_LOGS_STORAGE_KEY, JSON.stringify(trimmedLogsForStorage));
+        localStorage.setItem(MEAL_LOGS_STORAGE_KEY, JSON.stringify(logsForPersistentStorage));
       } catch (error) {
         console.error("Error saving meal logs to localStorage (quota likely exceeded):", error);
+        // Potentially notify user or implement more sophisticated cache eviction
       }
-      // Return state with photo for current session if needed, but ensure overall list is trimmed
-      return logsForStateProcessing.slice(0, MAX_MEAL_LOGS_STORED); 
+      return updatedLogsInMemory; // Return the potentially larger in-memory list for immediate UI updates
     });
 
-    updateStreakOnMealLog(logForState.date);
-    updateChallengesOnMealLog(logForState);
+    updateStreakOnMealLog(logToAdd.date);
+    updateChallengesOnMealLog(logToAdd);
     
     return {
-      foodItems: newLogData.foodItems,
+      foodItems: newLogData.foodItems, // These items include 'calculatedCO2eKg'
       carbonFootprintKgCO2e: newLogData.totalCarbonFootprint,
-      mealSuggestion: newLogData.totalCarbonFootprint > 2.0 ? "Consider a lower impact option next time!" : undefined // Example suggestion logic
+      // Other fields like suggestion, equivalency, feedback will be added by the caller (ReviewMealPage)
     };
   }, [user, updateStreakOnMealLog, updateChallengesOnMealLog]);
 

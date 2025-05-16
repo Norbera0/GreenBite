@@ -1,0 +1,51 @@
+food_item_name,co2e_per_kg,source_notes
+Apple,0.43,Various sources average
+Banana,0.86,Various sources average
+Rice (White, Cooked),0.51,Our World In Data (via Poore & Nemecek, 2018) - original value for uncooked, adjusted down slightly for cooked estimate
+Chicken Breast (Cooked),6.9,Our World In Data (Poultry Meat) - value is for raw, cooking impact varies
+Beef (Steak, Cooked),59.6,Our World In Data (Beef Herd) - value for raw, cooking impact varies. This is high, representing less efficient systems.
+Lentils (Cooked),0.9,Our World In Data - original value for dry, adjusted slightly for cooked estimate
+Tofu,2.0,Our World In Data
+Milk (Cow's),1.9,Our World In Data
+Bread (White),0.8,Various sources average for commercially produced white bread
+Potato (Cooked),0.3,Our World In Data (raw), cooking adds some
+Tomato (Fresh),1.1,Our World In Data (Fresh, field grown)
+Cheese (Cheddar),13.5,Our World In Data
+Eggs (Large, per egg ~0.05kg),0.21,Estimated based on ~4.2 kg CO2e/kg eggs (Our World in Data) - Note: co2e_per_kg for "Eggs" should be ~4.2
+Eggs,4.2,Our World In Data - For use with kg calculations
+Broccoli (Fresh),0.6,Various sources average
+Oats (Rolled, Dry),0.9,Various sources
+Salmon (Farmed, Fillet),11.9,Our World In Data
+Pork (Cooked),7.2,Our World In Data (Pig Meat) - value for raw
+Lamb (Cooked),24.5,Our World In Data (Sheep Meat) - value for raw
+Shrimp (Farmed),26.8,Our World In Data
+Coffee (Brewed, per cup ~0.25L),0.05,Estimated, highly variable. This is low for black coffee. Milk/sugar adds more.
+Almonds (Shelled),0.7,Our World In Data (per kg of almonds, not milk)
+Soy Milk,1.0,Our World In Data
+Oat Milk,0.9,Our World In Data
+Butter,11.9,Our World In Data
+Yogurt,2.2,Our World In Data
+Pasta (Dry),1.4,Our World In Data
+Chocolate (Dark),19.7,Our World In Data
+Wine (Bottle, 750ml),1.2,Estimated average
+Beer (Pint, ~0.57L),0.4,Estimated average
+Orange Juice (1L Carton),0.8,Various Sources
+Olive Oil (1L),6.0,Various Sources
+Sugar (Cane),2.8,Our World In Data
+Salt,0.01,Negligible for typical quantities
+Water (Tap),0.0003,Extremely low, often considered negligible for dietary footprint
+Water (Bottled, 1L),0.18,Significantly higher than tap due to plastic/transport
+Lettuce,0.7,Various sources
+Cucumber,0.5,Various sources
+Carrot,0.3,Various sources
+Onion,0.4,Various sources
+Bell Pepper,0.7,Various sources
+Mushroom,1.2,Various sources
+Peanut Butter,2.5,Various sources
+Cashews,2.9,Various sources
+Strawberries,0.6,Various sources
+Blueberries,0.8,Various sources
+Avocado,1.6,Various sources (can be higher depending on origin)
+Potato Chips (Bag, ~150g),0.2,Estimated, mainly from potato and processing/packaging
+Corn Flakes (Serving, ~30g),0.05,Estimated
+Tuna (Canned, in oil, drained),3.5,Various sources, can vary

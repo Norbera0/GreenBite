@@ -1,13 +1,14 @@
-
 // src/ai/schemas.ts
 import { z } from 'genkit';
 
 /**
  * Zod schema for a single food item identified in a meal.
+ * Can now include its individually calculated CO2e.
  */
 export const FoodItemSchema = z.object({
   name: z.string().describe('The name of the food item.'),
   quantity: z.string().describe('The quantity and units of the food item (e.g., "200g", "1 cup").'),
+  calculatedCO2eKg: z.number().optional().describe('The calculated carbon footprint for this specific item in kg CO2e, if determined individually.'),
 });
 
 /**
@@ -53,15 +54,21 @@ export type IdentifyFoodAndQuantitiesOutput = z.infer<typeof IdentifyFoodAndQuan
 /**
  * Zod schema for the input required by the carbon footprint estimation AI flow.
  * This flow now takes user-confirmed food items and quantities.
+ * It's used as a fallback if an item isn't in the CSV or for the entire meal if preferred.
  */
 export const EstimateCarbonFootprintInputSchema = z.object({
   photoDataUri: z
     .string()
-    .optional() // Photo might be optional if only text-based items are provided, but good for context.
+    .optional() 
     .describe(
       "A photo of a meal, as a data URI. Primarily for visual context if the AI needs it, as items are already specified."
     ),
-  foodItems: z.array(FoodItemSchema).describe('The user-confirmed list of food items and their quantities.'),
+  foodItems: z.array(
+    z.object({ // Simplified FoodItem for this specific flow, as calculatedCO2eKg is an output, not input here
+      name: z.string().describe('The name of the food item.'),
+      quantity: z.string().describe('The quantity and units of the food item (e.g., "200g", "1 cup").'),
+    })
+  ).describe('The user-confirmed list of food items and their quantities.'),
 });
 
 /**
@@ -73,12 +80,12 @@ export type EstimateCarbonFootprintInput = z.infer<
 
 /**
  * Zod schema for the output produced by the carbon footprint estimation AI flow.
- * It only returns the total carbon footprint now. The food items are known from the input.
+ * It returns the total carbon footprint for the provided items.
  */
 export const EstimateCarbonFootprintOutputSchema = z.object({
   carbonFootprintKgCO2e: z
     .number()
-    .describe('The *total* estimated carbon footprint of the meal in kg CO2e.'),
+    .describe('The *total* estimated carbon footprint of the meal (or specific items provided) in kg CO2e.'),
 });
 
 /**
@@ -87,6 +94,22 @@ export const EstimateCarbonFootprintOutputSchema = z.object({
 export type EstimateCarbonFootprintOutput = z.infer<
   typeof EstimateCarbonFootprintOutputSchema
 >;
+
+// --- Normalize Quantity to Kilograms Schemas ---
+export const NormalizeQuantityToKgInputSchema = z.object({
+  itemName: z.string().describe("The name of the food item, for context (e.g., 'rice', 'apple')."),
+  quantityString: z.string().describe("The user-inputted quantity string (e.g., '1 slice', 'a bowl of', '200g', '2 pieces').")
+});
+export type NormalizeQuantityToKgInput = z.infer<typeof NormalizeQuantityToKgInputSchema>;
+
+export const NormalizeQuantityToKgOutputSchema = z.object({
+  quantityKg: z.number().describe("The estimated quantity of the item in kilograms (kg)."),
+  originalQuantityString: z.string().describe("The original quantity string provided by the user."),
+  itemName: z.string().describe("The item name this normalization applies to."),
+  confidence: z.enum(["High", "Medium", "Low"]).optional().describe("The AI's confidence in the conversion accuracy.")
+});
+export type NormalizeQuantityToKgOutput = z.infer<typeof NormalizeQuantityToKgOutputSchema>;
+
 
 // --- Legacy Schemas for reference or if needed by other parts not yet updated ---
 /**
@@ -105,7 +128,7 @@ export type EstimateCarbonFootprintFromMealPhotoInput = z.infer<typeof EstimateC
 
 
 export const EstimateCarbonFootprintFromMealPhotoOutputSchema = z.object({
-  foodItems: z.array(FoodItemSchema).describe('The identified food items in the meal.'),
+  foodItems: z.array(FoodItemSchema).describe('The identified food items in the meal.'), // FoodItemSchema now includes calculatedCO2eKg
   carbonFootprintKgCO2e: z
     .number()
     .describe('The *total* estimated carbon footprint of the meal in kg CO2e.'),
@@ -119,7 +142,7 @@ export type EstimateCarbonFootprintFromMealPhotoOutput = z.infer<typeof Estimate
  * Zod schema for the input required by the meal suggestion AI flow.
  */
 export const GenerateMealSuggestionInputSchema = z.object({
-  foodItems: z.array(FoodItemSchema).describe('The identified food items in the meal.'),
+  foodItems: z.array(FoodItemSchema).describe('The identified food items in the meal, potentially with their individual CO2e values.'),
   carbonFootprintKgCO2e: z.number().describe('The estimated carbon footprint of the meal in kg CO2e.'),
 });
 
@@ -179,7 +202,7 @@ export const FoodSwapSchema = z.object({
   suggestedItem: z.string().describe("The lower-impact alternative food item."),
   co2eSavingEstimate: z.string().describe("Estimated CO2e savings, e.g., '15.4 kg CO2e/month' or 'by 70%'."),
   details: z.string().optional().describe("A brief explanation for the suggestion."),
-  tryThis: z.boolean().optional().describe("User's intent to try this swap."), // Added for context state
+  tryThis: z.boolean().optional().describe("User's intent to try this swap."), 
 });
 
 /**
@@ -259,7 +282,6 @@ export type AskAIChatbotOutput = z.infer<typeof AskAIChatbotOutputSchema>;
 // Daily Challenge
 export const GenerateDailyChallengeInputSchema = z.object({
   userHistorySummary: z.string().optional().describe("Optional summary of user's recent activity or preferences to tailor the challenge."),
-  // avoidChallengeTypes: z.array(z.string()).optional().describe("List of challenge types recently completed to encourage variety."),
 });
 export type GenerateDailyChallengeInput = z.infer<typeof GenerateDailyChallengeInputSchema>;
 
@@ -273,7 +295,6 @@ export type GenerateDailyChallengeOutput = z.infer<typeof GenerateDailyChallenge
 // Weekly Challenge
 export const GenerateWeeklyChallengeInputSchema = z.object({
   mealLogsSummary: z.string().describe("Summary of user's meal logs for the past 7-14 days to identify patterns and suggest relevant challenges."),
-  // avoidChallengeTypes: z.array(z.string()).optional().describe("List of weekly challenge types recently completed."),
 });
 export type GenerateWeeklyChallengeInput = z.infer<typeof GenerateWeeklyChallengeInputSchema>;
 
@@ -302,10 +323,8 @@ export const MealImpactLevelSchema = z.enum(['High', 'Medium', 'Low']);
 export type MealImpactLevel = z.infer<typeof MealImpactLevelSchema>;
 
 export const GenerateMealFeedbackInputSchema = z.object({
-  foodItems: z.array(FoodItemSchema).describe("The list of food items in the meal."),
+  foodItems: z.array(FoodItemSchema).describe("The list of food items in the meal, potentially with their individual CO2e values."),
   carbonFootprintKgCO2e: z.number().describe("The total carbon footprint of the meal in kg CO2e."),
-  // Optional: Consider adding user's recent trends or preferences if available
-  // userTrends: z.string().optional().describe("Summary of user's recent eating habits or goals."),
 });
 export type GenerateMealFeedbackInput = z.infer<typeof GenerateMealFeedbackInputSchema>;
 
@@ -324,3 +343,5 @@ export type { GenerateTipInput as GenerateWeeklyTipInput, GenerateTipOutput as G
 export type { EstimateCarbonFootprintInput as EstimateMealCarbonFootprintInput, EstimateCarbonFootprintOutput as EstimateMealCarbonFootprintOutput };
 // Export new types for food identification
 export type { IdentifyFoodAndQuantitiesInput, IdentifyFoodAndQuantitiesOutput, IdentifiedItem as AIIdentifiedFoodItem };
+// Export new types for quantity normalization
+export type { NormalizeQuantityToKgInput, NormalizeQuantityToKgOutput };

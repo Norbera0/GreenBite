@@ -8,10 +8,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, CheckCircle, AlertTriangle, PlusCircle, Trash2, Utensils } from 'lucide-react';
+import { Loader2, CheckCircle, AlertTriangle, PlusCircle, Trash2 } from 'lucide-react';
 import Header from '@/components/header';
 import { useAppContext } from '@/context/app-context';
 import { estimateMealCarbonFootprint } from '@/ai/flows/estimate-carbon-footprint'; 
+import { normalizeQuantityToKg } from '@/ai/flows/normalize-quantity-to-kg';
+import { getCarbonFactor } from '@/services/food-data-service';
 import { generateCarbonEquivalency } from '@/ai/flows/generate-carbon-equivalency';
 import { generateMealFeedback } from '@/ai/flows/generate-meal-feedback';
 import type { FoodItem, AIIdentifiedFoodItem, FinalMealResult, NewMealLogData } from '@/context/app-context';
@@ -82,10 +84,9 @@ const ReviewMealPage: NextPage = () => {
   };
 
   const handleConfirmMeal = async () => {
-    if (!mealPhoto) {
-      setError('No meal photo found. Please go back and take a photo.');
-      toast({ title: "Missing Photo", description: "Please re-upload your meal photo.", variant: "destructive" });
-      return;
+    if (!mealPhoto && !editableItems.some(item => item.name.trim() && item.quantity.trim())) {
+       toast({ title: "Missing Meal Info", description: "Please provide a photo or manually add items.", variant: "destructive" });
+       return;
     }
     
     const validItems = editableItems.filter(item => item.name.trim() && item.quantity.trim());
@@ -98,43 +99,78 @@ const ReviewMealPage: NextPage = () => {
     setIsProcessing(true);
     setError(null);
     
-    const foodItemsForAI: FoodItem[] = validItems.map(({ id, ...rest }) => rest);
+    let totalMealFootprint = 0;
+    const processedFoodItems: FoodItem[] = [];
+
+    for (const item of validItems) {
+      setProcessingStep(`Processing ${item.name}...`);
+      let itemCO2e = 0;
+      const carbonFactor = await getCarbonFactor(item.name);
+
+      if (carbonFactor !== null) {
+        try {
+          setProcessingStep(`Normalizing ${item.name} quantity...`);
+          const normalizationResult = await normalizeQuantityToKg({ itemName: item.name, quantityString: item.quantity });
+          itemCO2e = normalizationResult.quantityKg * carbonFactor;
+        } catch (normError) {
+          console.warn(`Normalization failed for ${item.name}, falling back to AI estimate for this item. Error: ${normError}`);
+          // Fallback for this specific item if normalization fails
+          try {
+            setProcessingStep(`AI estimating ${item.name}...`);
+            const fallbackResult = await estimateMealCarbonFootprint({ foodItems: [{ name: item.name, quantity: item.quantity }], photoDataUri: mealPhoto ?? undefined });
+            itemCO2e = fallbackResult.carbonFootprintKgCO2e;
+          } catch (aiError) {
+            console.error(`AI fallback estimation also failed for ${item.name}:`, aiError);
+            toast({ title: `Estimation Failed for ${item.name}`, description: "Could not estimate footprint, will use an average.", variant: "default" });
+            itemCO2e = 0.5; // Default small footprint if all else fails for item
+          }
+        }
+      } else { // Item not in CSV, use AI estimation for this item
+        try {
+          setProcessingStep(`AI estimating ${item.name}...`);
+          const aiEstimateResult = await estimateMealCarbonFootprint({ foodItems: [{ name: item.name, quantity: item.quantity }], photoDataUri: mealPhoto ?? undefined });
+          itemCO2e = aiEstimateResult.carbonFootprintKgCO2e;
+        } catch (aiError) {
+          console.error(`AI estimation failed for ${item.name}:`, aiError);
+          toast({ title: `Estimation Failed for ${item.name}`, description: "Could not estimate footprint, will use an average.", variant: "default" });
+          itemCO2e = 0.5; // Default small footprint
+        }
+      }
+      totalMealFootprint += itemCO2e;
+      processedFoodItems.push({ name: item.name, quantity: item.quantity, calculatedCO2eKg: parseFloat(itemCO2e.toFixed(3)) });
+    }
+    
     let finalResultForContext: FinalMealResult | null = null;
 
     try {
-      setProcessingStep('Calculating Green Score...'); // Updated processing step
-      const footprintResult = await estimateMealCarbonFootprint({
-        photoDataUri: mealPhoto,
-        foodItems: foodItemsForAI,
-      });
-
       if (!user?.email) {
           throw new Error("User session not found. Please log in again.");
       }
       
       const newLogDetails: NewMealLogData = {
-           photoDataUri: mealPhoto,
-           foodItems: foodItemsForAI,
-           totalCarbonFootprint: footprintResult.carbonFootprintKgCO2e,
+           photoDataUri: mealPhoto ?? undefined, // Pass photo if available
+           foodItems: processedFoodItems,
+           totalCarbonFootprint: totalMealFootprint,
       };
-      const loggedMealBasicResult = await addMealLog(newLogDetails);
+      // addMealLog now returns basic structure, further details are fetched below
+      const loggedMealBasicResult = await addMealLog(newLogDetails); 
 
-      if (!loggedMealBasicResult) {
+      if (!loggedMealBasicResult) { // This check might need adjustment based on addMealLog's return
         throw new Error("Failed to log meal before fetching additional AI details.");
       }
+      
+      finalResultForContext = { ...loggedMealBasicResult }; // Spread the basic result (items, total CO2e)
 
-      finalResultForContext = { ...loggedMealBasicResult }; 
-
-      setProcessingStep('Fetching Eco-Facts...'); // Updated processing step
+      setProcessingStep('Fetching Eco-Facts...');
       const equivalencyResult = await generateCarbonEquivalency({
-        carbonFootprintKgCO2e: footprintResult.carbonFootprintKgCO2e,
+        carbonFootprintKgCO2e: totalMealFootprint,
       });
       finalResultForContext.carbonEquivalency = equivalencyResult.equivalency;
 
-      setProcessingStep('Crafting Your Feedback...'); // Updated processing step
+      setProcessingStep('Crafting Your Feedback...');
       const feedbackResult = await generateMealFeedback({
-        foodItems: foodItemsForAI,
-        carbonFootprintKgCO2e: footprintResult.carbonFootprintKgCO2e,
+        foodItems: processedFoodItems, // Pass items with their calculated CO2e
+        carbonFootprintKgCO2e: totalMealFootprint,
       });
       finalResultForContext.mealFeedbackMessage = feedbackResult.feedbackMessage;
       finalResultForContext.impactLevel = feedbackResult.impactLevel;
@@ -150,6 +186,7 @@ const ReviewMealPage: NextPage = () => {
       setError(`Failed to process meal: ${errorMessage}`);
       toast({ title: "Processing Failed", description: `Could not process your meal. ${errorMessage}`, variant: "destructive" });
       if (finalResultForContext && finalResultForContext.carbonFootprintKgCO2e !== undefined) {
+        // If we have a basic result, at least show that
         setMealResult(finalResultForContext);
         router.push('/meal-result');
       }
@@ -167,10 +204,18 @@ const ReviewMealPage: NextPage = () => {
 
 
   if (isAppContextLoading || !user) {
-    return <div className="flex justify-center items-center min-h-screen bg-background"><Loader2 className="h-8 w-8 animate-spin text-primary"/></div>;
+    return (
+      <div className="flex flex-col min-h-screen bg-background">
+        <Header title="Review Meal" />
+        <main className="flex-grow container mx-auto p-4 flex flex-col items-center justify-center">
+            <Loader2 className="h-12 w-12 animate-spin text-primary" />
+            <p className="text-muted-foreground mt-4">Loading GreenBite...</p>
+        </main>
+      </div>
+    );
   }
 
-  if (!mealPhoto && !isAppContextLoading) { 
+  if (!mealPhoto && !isAppContextLoading && editableItems.length === 0) { 
      return (
         <div className="flex flex-col min-h-screen bg-background">
             <Header title="Review Meal" showBackButton={false}/>
@@ -185,19 +230,19 @@ const ReviewMealPage: NextPage = () => {
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
-      <Header title="Almost There!" showBackButton={true} onBackClick={handleGoBack}/> {/* Updated header title */}
+      <Header title="Almost There!" showBackButton={true} onBackClick={handleGoBack}/>
       <main className="flex-grow container mx-auto p-4 flex flex-col items-center">
         <Card className="w-full max-w-lg shadow-lg border-primary/20">
           <CardHeader>
-            <CardTitle className="text-2xl text-center text-primary">Looking Good! Let's Confirm</CardTitle> {/* Updated card title */}
+            <CardTitle className="text-2xl text-center text-primary">Looking Good! Let's Confirm</CardTitle>
             <CardDescription className="text-center">
-              Our AI spotted these items. Make any tweaks, then see your meal's impact!
+              Our AI spotted these items. Make any tweaks, then see your meal's impact! Or add items manually.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             {mealPhoto && (
               <div className="w-full h-48 sm:h-64 border rounded-md overflow-hidden flex items-center justify-center bg-muted mb-4">
-                <img src={mealPhoto} alt="Your Meal" className="object-cover w-full h-full" />
+                <img src={mealPhoto} alt="Your Meal" className="object-cover w-full h-full" data-ai-hint="logged meal" />
               </div>
             )}
 
@@ -273,7 +318,7 @@ const ReviewMealPage: NextPage = () => {
               ) : (
                 <CheckCircle className="mr-2 h-5 w-5" />
               )}
-              {isProcessing ? processingStep || 'Calculating...' : 'Confirm & See My Green Impact!'} {/* Updated button text */}
+              {isProcessing ? processingStep || 'Calculating...' : 'Confirm & See My Green Impact!'}
             </Button>
           </CardFooter>
         </Card>
