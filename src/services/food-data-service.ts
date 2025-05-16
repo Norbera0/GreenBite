@@ -26,6 +26,7 @@ async function fetchAndParseCSV(): Promise<FoodCarbonData[]> {
       from_line: 2, // Skip the header row in the CSV file
       skip_empty_lines: true,
       trim: true,
+      relax_column_count: true, // Allow varying column counts; extra columns are discarded
       cast: (value, context) => {
         // When columns are explicitly defined as an array, context.column is the column name.
         if (context.column === 'co2e_per_kg') {
@@ -37,7 +38,8 @@ async function fetchAndParseCSV(): Promise<FoodCarbonData[]> {
     });
     
     // Filter out records where co2e_per_kg is null (due to parsing error or empty value)
-    foodDataCache = records.filter(record => record.co2e_per_kg !== null);
+    // or if food_item_name is somehow missing after relaxed parsing.
+    foodDataCache = records.filter(record => record.food_item_name !== undefined && record.co2e_per_kg !== null);
     return foodDataCache;
   } catch (error) {
     console.error("Error parsing or fetching food_data.csv:", error);
@@ -79,3 +81,4 @@ export async function getCarbonFactor(foodName: string): Promise<number | null> 
 
 // Pre-warm the cache on service load (optional, but can be good for performance)
 // getFoodDataMap().catch(err => console.error("Failed to pre-warm food data cache:", err));
+
