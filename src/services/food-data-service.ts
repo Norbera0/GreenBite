@@ -26,6 +26,7 @@ async function fetchAndParseCSV(): Promise<FoodCarbonData[]> {
       from_line: 2, // Skip the header row in the CSV file
       skip_empty_lines: true,
       trim: true,
+      quote: '"', // Explicitly set the quote character (default is already '"')
       relax_column_count: true, // Allow varying column counts; extra columns are discarded
       cast: (value, context) => {
         // When columns are explicitly defined as an array, context.column is the column name.
