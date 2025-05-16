@@ -40,7 +40,7 @@ function calculateChange(current: number, previous: number): { value: number; di
 }
 
 const VISIBLE_DATES_IN_SCROLLER = 7;
-const SOUTH_KOREA_AVG_CO2E = 5.1;
+const GLOBAL_AVG_CO2E = 6.03; // Updated constant name and value
 
 const ReportsPage: NextPage = () => { 
   const { user, mealLogs, isLoading, weeklyTip, fetchWeeklyTip, isLoadingWeeklyTip } = useAppContext();
@@ -199,8 +199,8 @@ const ReportsPage: NextPage = () => {
   }, [mealLogs, selectedDate, selectedMealType]);
 
   const yAxisDomainMax = useMemo(() => {
-    if (!graphData || graphData.length === 0) return Math.max(5, SOUTH_KOREA_AVG_CO2E + 1); 
-    const maxVal = Math.max(...graphData.map(d => d.totalCO2e), SOUTH_KOREA_AVG_CO2E, 0); 
+    if (!graphData || graphData.length === 0) return Math.max(5, GLOBAL_AVG_CO2E + 1); 
+    const maxVal = Math.max(...graphData.map(d => d.totalCO2e), GLOBAL_AVG_CO2E, 0); 
     const roundedMax = Math.ceil(maxVal / 5) * 5; 
     return Math.max(5, roundedMax + (roundedMax > 0 ? 1 : 0) ); 
   }, [graphData]);
@@ -280,7 +280,7 @@ const ReportsPage: NextPage = () => {
                    />
                   <Line type="monotone" dataKey="totalCO2e" stroke="hsl(var(--chart-2))" strokeWidth={2} dot={{ r: 3, fill: 'hsl(var(--chart-2))' }} activeDot={{ r: 5 }} />
                   <ReferenceLine 
-                    y={SOUTH_KOREA_AVG_CO2E} 
+                    y={GLOBAL_AVG_CO2E} 
                     stroke="hsl(var(--muted-foreground))" 
                     strokeDasharray="3 3" 
                     strokeWidth={1.5}
@@ -288,7 +288,7 @@ const ReportsPage: NextPage = () => {
                 </LineChart>
               </ResponsiveContainer>
               <p className="text-xs text-muted-foreground text-center pt-1">
-                Avg. South Korea: {SOUTH_KOREA_AVG_CO2E} kg CO₂e/day
+                Global Average: {GLOBAL_AVG_CO2E} kg CO2e per day
               </p>
             </CardContent>
           </Card>
